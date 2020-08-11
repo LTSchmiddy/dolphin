@@ -244,6 +244,24 @@ bool ButtonPressed(int number)
   return button_pressed;
 }
 
+// Added by LT_Schmiddy:
+// Needed to check for Beam and Visor Buttons:
+bool CheckVisorMenu()
+{
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckVisorMenuCtrl();
+}
+
+bool CheckBeamMenu()
+{
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckBeamMenuCtrl();
+}
+// End of Addition
+
+
 bool CheckVisor(int visorcount)
 {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
