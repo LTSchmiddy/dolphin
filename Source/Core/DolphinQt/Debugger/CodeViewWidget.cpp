@@ -183,6 +183,19 @@ static u32 GetBranchFromAddress(u32 addr)
   return std::stoul(hex, nullptr, 16);
 }
 
+
+/*
+Note from LTSchmiddy:
+
+I kept encountering the following error message when compiling:
+  error C2220 : the following warning is treated as an error
+  warning C4996 : 'QFontMetrics::width' : Use QFontMetrics::horizontalAdvance
+
+Hence, I had to change all uses of 'fm.width' to 'fm.horizontalAdvance' in this method.
+Fixed the problem.
+
+*/
+
 void CodeViewWidget::FontBasedSizing()
 {
   // just text width is too small with some fonts, so increase by a bit
@@ -193,7 +206,9 @@ void CodeViewWidget::FontBasedSizing()
   verticalHeader()->setMaximumSectionSize(rowh);
   horizontalHeader()->setMinimumSectionSize(rowh + 5);
   setColumnWidth(CODE_VIEW_COLUMN_BREAKPOINT, rowh + 5);
-  setColumnWidth(CODE_VIEW_COLUMN_ADDRESS, fm.width(QStringLiteral("80000000")) + extra_text_width);
+  //setColumnWidth(CODE_VIEW_COLUMN_ADDRESS, fm.width(QStringLiteral("80000000")) + extra_text_width);
+  setColumnWidth(CODE_VIEW_COLUMN_ADDRESS,
+                 fm.horizontalAdvance(QStringLiteral("80000000")) + extra_text_width);
 
   // The longest instruction is technically 'ps_merge00' (0x10000420u), but those instructions are
   // very rare and would needlessly increase the column size, so let's go with 'rlwinm.' instead.
@@ -205,11 +220,14 @@ void CodeViewWidget::FontBasedSizing()
   const std::string ins = (split == std::string::npos ? disas : disas.substr(0, split));
   const std::string param = (split == std::string::npos ? "" : disas.substr(split + 1));
   setColumnWidth(CODE_VIEW_COLUMN_INSTRUCTION,
-                 fm.width(QString::fromStdString(ins)) + extra_text_width);
+                 //fm.width(QString::fromStdString(ins)) + extra_text_width);
+                 fm.horizontalAdvance(QString::fromStdString(ins)) + extra_text_width);
   setColumnWidth(CODE_VIEW_COLUMN_PARAMETERS,
-                 fm.width(QString::fromStdString(param)) + extra_text_width);
+                 //fm.width(QString::fromStdString(param)) + extra_text_width);
+                 fm.horizontalAdvance(QString::fromStdString(param)) + extra_text_width);
   setColumnWidth(CODE_VIEW_COLUMN_DESCRIPTION,
-                 fm.width(QStringLiteral("0")) * 25 + extra_text_width);
+                 //fm.width(QStringLiteral("0")) * 25 + extra_text_width);
+                 fm.horizontalAdvance(QStringLiteral("0")) * 25 + extra_text_width);
 
   Update();
 }
