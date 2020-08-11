@@ -2,6 +2,8 @@
 
 #include "Core/PrimeHack/Games/MP1.h"
 
+#include "Core/Core.h"
+
 namespace prime
 {
   static std::array<int, 4> prime_one_beams = {0, 2, 1, 3};
@@ -27,6 +29,7 @@ namespace prime
 
   void MP1::run_mod()
   {
+    // Beam and Visor Switching:
     u32 powerup_base = PowerPC::HostRead_U32(powerups_base_address());
 
     int beam_id = get_beam_switch(prime_one_beams);
@@ -46,6 +49,16 @@ namespace prime
       }
     }
 
+    //Added by LT_Schmiddy: Beam+Visor Menu Logic.
+
+    if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
+    {
+      Core::DisplayMessage(std::to_string((uint32_t)PowerPC::HostRead_U32(game_cursor.x_address)).c_str(), 0.05);
+      
+    }
+
+
+    // Start Aiming Code:
     if (PowerPC::HostRead_U32(orbit_state_address()) != 5 && PowerPC::HostRead_U8(lockon_address()))
     {
       PowerPC::HostWrite_U32(0, yaw_vel_address());
@@ -116,7 +129,7 @@ namespace prime
     code_changes.emplace_back(0x8019fbcc, 0x60000000);
 
     // Disable Beams/Visor Menu
-    code_changes.emplace_back(0x80075CD0, 0x48000044);
+    //code_changes.emplace_back(0x80075CD0, 0x48000044);
 
     beam_change_code(0x8018e544);
     springball_code(0x801476D0, &code_changes);

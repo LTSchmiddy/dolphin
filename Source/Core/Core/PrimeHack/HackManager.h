@@ -5,6 +5,7 @@
 
 #include "Core/PrimeHack/PrimeMod.h"
 
+
 namespace prime {
 
 // Determines current running game, activates enabled modifications for said game

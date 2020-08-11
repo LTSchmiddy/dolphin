@@ -21,16 +21,55 @@ namespace prime
   static std::array<bool, 4> beam_owned = {false, false, false, false};
   static std::array<bool, 4> visor_owned = {false, false, false, false};
 
+  GameCursor game_cursor;
+
+  void GameCursor::load(){
+    load_game_cursor(region);
+  }
+
+  void GameCursor::process()
+  {
+    if (region == Region::PAL)
+    {
+      load();
+    }
+    //handle_cursor(0x80913c9c, 0x80913d5c, 0.95f, 0.90f);
+    handle_cursor(x_address, y_address, right_bound, bottom_bound);
+  }
+
   void MenuNTSC::run_mod()
   {
-    handle_cursor(0x80913c9c, 0x80913d5c, 0.95f, 0.90f);
+    if (game_cursor.is_set)
+    {
+      game_cursor.process();
+    }
+
   }
 
   void MenuPAL::run_mod()
   {
-    u32 cursor_base = PowerPC::HostRead_U32(0x80621ffc);
-    handle_cursor(cursor_base + 0xdc, cursor_base + 0x19c, 0.95f, 0.90f);
+    //u32 cursor_base = PowerPC::HostRead_U32(0x80621ffc);
+    //handle_cursor(cursor_base + 0xdc, cursor_base + 0x19c, 0.95f, 0.90f);
+    game_cursor.process();
+
   }
+
+  void load_game_cursor(Region p_region) {
+    if (p_region == Region::NTSC) {
+      game_cursor = {true, 0x80913c9c, 0x80913d5c, 0.95f, 0.90f, Region::NTSC};
+    }
+
+    else if (p_region == Region::PAL)
+    {
+      u32 cursor_base = PowerPC::HostRead_U32(0x80621ffc);
+      game_cursor = {true, cursor_base + 0xdc, cursor_base + 0x19c, 0.95f, 0.90f, Region::PAL};
+    }
+    else {
+      game_cursor = {false, 0, 0, 0, 0, Region::INVALID_REGION};
+    }
+  }
+
+
 
   void set_beam_owned(int index, bool owned)
   {
@@ -307,4 +346,5 @@ namespace prime
     ss << std::hex << address;
     cplayer_str = ss.str();
   }
-}  // namespace prime
+
+  }  // namespace prime

@@ -3,6 +3,10 @@
 #include "Core/PrimeHack/HackConfig.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "InputCommon/GenericMouse.h"
+#include "Core/PrimeHack/PrimeUtils.h"
+
+//#include "Core/Core.h"
+
 
 namespace prime {
   HackManager::HackManager()
@@ -75,9 +79,20 @@ namespace prime {
           }
         }
       }
-      
+
+      if (last_region != active_region) {
+        load_game_cursor(active_region);
+      }
+
       last_game = active_game;
       last_region = active_region;
+
+      //if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
+      //{
+      //  Core::DisplayMessage(
+      //      std::to_string((uint32_t)PowerPC::HostRead_U32(game_cursor.x_address)).c_str(), 0.05);
+      //}
+
       for (std::size_t i = 0; i < active_mods.size(); i++) {
         active_mods[i]->run_mod();
       }

@@ -140,6 +140,11 @@ public:
   void ControlChannel(u16 channel_id, const void* data, u32 size);
   bool CheckForButtonPress();
 
+  // Added by LT_Schmiddy
+  bool CheckVisorMenuCtrl();
+  bool CheckBeamMenuCtrl();
+
+
   bool CheckVisorCtrl(int visor_count);
   bool CheckBeamCtrl(int beam_count);
   bool CheckBeamScrollCtrl(bool direction);

@@ -17,6 +17,23 @@ namespace prime
 {
 constexpr float TURNRATE_RATIO = 0.00498665500569808449206349206349f;
 
+
+struct GameCursor
+{
+  bool is_set;
+  u32 x_address;
+  u32 y_address;
+  float right_bound;
+  float bottom_bound;
+  Region region;
+
+  void load();
+  void process();
+};
+
+extern GameCursor game_cursor;
+
+void load_game_cursor(Region p_region);
 int get_beam_switch(std::array<int, 4> const& beams);
 std::tuple<int, int> get_visor_switch(std::array<std::tuple<int, int>, 4> const& visors, bool combat_visor);
 
@@ -38,6 +55,9 @@ void set_cursor_pos(float x, float y);
 
 void disable_culling(u32 address);
 void adjust_viewmodel(float fov, u32 arm_address, u32 znear_address, u32 znear_value);
+
+
+
 
 class MenuNTSC : public PrimeMod
 {

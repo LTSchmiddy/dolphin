@@ -10,6 +10,9 @@ namespace prime
 {
   void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_device_source);
 
+  bool CheckVisorMenuCtl();
+  bool CheckBeamMenuCtl();
+
   bool CheckBeamCtl(int beam_num);
   bool CheckVisorCtl(int visor_num);
   bool CheckBeamScrollCtl(bool direction);

@@ -53,6 +53,19 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   device_source = mkb_device_source;
 }
 
+// Added by LT_schmiddy:
+bool CheckVisorMenuCtl()
+{
+  return Wiimote::CheckVisorMenu();
+}
+
+
+bool CheckBeamMenuCtl()
+{
+  return Wiimote::CheckBeamMenu();
+}
+// End of Addition
+
 bool CheckBeamCtl(int beam_num)
 {
   return Wiimote::CheckBeam(beam_num);
