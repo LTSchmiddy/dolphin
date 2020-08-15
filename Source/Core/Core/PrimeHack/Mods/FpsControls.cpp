@@ -1,6 +1,11 @@
 #include "Core/PrimeHack/Mods/FpsControls.h"
 
 #include "Core/PrimeHack/PrimeUtils.h"
+#include "Core/PrimeHack/HackConfig.h"
+#include "Core/Core.h"
+
+// Added by LTSchmiddy
+#include <cmath>
 
 namespace prime {
 namespace {  
@@ -18,7 +23,15 @@ namespace {
     std::make_tuple<int, int>(2, 0x0d), std::make_tuple<int, int>(3, 0x0e)};
 
   constexpr u32 ORBIT_STATE_GRAPPLE = 5;
-}
+}  // namespace
+
+  const int8_t menu_cursor_counter_max = 5;
+  const int8_t menu_cursor_counter_min = -5;
+  int8_t menu_cursor_counter = 0;
+
+  uint8_t ridley_fight_over_cooldown = 30;
+  uint8_t ridley_fight_over_cooldown_timer = 0;
+
 void FpsControls::run_mod(Game game, Region region) {
   switch (game) {
   case Game::MENU:
@@ -55,6 +68,13 @@ float FpsControls::calculate_yaw_vel() {
 
 void FpsControls::handle_beam_visor_switch(std::array<int, 4> const &beams,
     std::array<std::tuple<int, int>, 4> const &visors) {
+
+  // Added by LTSchmiddy
+  // if the beam_change flag is still set from last time, then the game isn't able to change the
+  // beam currently. Let's set it back to 0, so that it doesn't spontaneously change later:
+  write32(0, beamchange_flag_address);
+
+
   // Global array of all powerups (measured in "ammunition"
   // even for things like visors/beams)
   u32 powerups_array_base;
@@ -96,7 +116,8 @@ void FpsControls::handle_beam_visor_switch(std::array<int, 4> const &beams,
   DevInfo("Powerups_Base", "%08X", powerups_array_base);
 }
 
-void FpsControls::run_mod_menu(Region region) {
+void FpsControls::run_mod_menu(Region region)
+{
   if (region == Region::NTSC) {
     handle_cursor(0x80913c9c, 0x80913d5c, 0.95f, 0.90f);
   }
@@ -106,7 +127,145 @@ void FpsControls::run_mod_menu(Region region) {
   }
 }
 
+/* Added by LTSchmiddy:
+Since Prime 1 & 2 have part of their usual beam selection code overridden
+(in order to make the beam selection buttons work), the in-game beam selection menu
+no longer actually equips the selected beam.
+
+Instead of bending over backwards to re-implement the original assembly code, I figured
+it would be easier to re-write the logic on the PrimeHack side (since I'm more
+comfortable with C++ anyway). Fortunately, the selection panels in the menus are such
+that they can be easily defined with nothing more than a little highschool algebra:
+
+===================================================================================================
+The center is the area inside an oval: 1 > (x/major-axis)^2 + (y/minor-axis)^2
+(I know it looks circular when rendered, but these coordinate system used for the cursor
+compresses the vertical axis so that all screen edges have an absolute value of 1, regardless
+of screen dimensions.)
+
+The upper section is a V shape, minus the center oval.
+The equation for a V is as follows: y < m * abs(x) + b
+(Though, do remember that the y axis of the cursor coordinate system is inverted;
+larger values are further down the screen. Also, this assumes we've already checked the
+oval equation.)
+
+If those two checks fail, we can determine between the final two panels in the menu
+by simply checking if x is positive or negative.
+===================================================================================================
+
+The numbers used in the equations below were the values (in memory) for the cursor position
+at the boundries between panels, using a 16:9 aspect ratio. I'm not entirely sure if a
+different aspect ratio would require different numbers, however. They should still be close,
+at least.
+*/
+void FpsControls::determine_selected_beam_menu(Game game)
+{
+  float x = get_cursor_x();
+  float y = get_cursor_y();
+
+  // equation for center circle:
+  if (1 > pow((x / 0.136), 2) + pow((y / 0.2), 2)) {
+    // Select beam 1;
+    request_beam_change(0);
+  }
+
+  // equation for top section:
+  else if (y < -(0.78667 / 0.95) * abs(x))
+  {
+    if (game == Game::PRIME_1)
+    {
+      request_beam_change(1);
+    }
+    if (game == Game::PRIME_2)
+    {
+      request_beam_change(3);
+    }
+  }
+
+  // Cursor on left side:
+  else if (x < 0) {
+    if (game == Game::PRIME_1)
+    {
+      request_beam_change(2);
+    }
+    if (game == Game::PRIME_2)
+    {
+      request_beam_change(1);
+    }
+  }
+
+  // Cursor on right side:
+  else
+  {
+    if (game == Game::PRIME_1)
+    {
+      request_beam_change(3);
+    }
+    if (game == Game::PRIME_2)
+    {
+      request_beam_change(2);
+    }
+  }
+}
+
 void FpsControls::run_mod_mp1() {
+  // I think Prime 1's cursor x_addr is 0x807DF31C. Not 100% sure, tho. y_addr = 0x807DF3DC
+  // X_addr = [[[0x804d3b30] + 0xc54] + 0x9c]
+  // Y_addr = [[[0x804d3b30] + 0xc54] + 0x15c]
+
+  if (mp1_static.cursor_ptr_address != 0) {
+
+    u32 cursor_base = read32(read32(mp1_static.cursor_ptr_address) + mp1_static.cursor_offset);
+    if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
+    {
+      handle_cursor(cursor_base + 0x9c, cursor_base + 0x15c, 0.95f, 0.90f);
+      write32(0, mp1_static.yaw_vel_address);
+
+      // Set the counter to a positive for the beam menu, negative for the visor menu.
+      if (CheckBeamMenuCtl())
+      {
+        menu_cursor_counter = menu_cursor_counter_max;
+      }
+      // CheckVisorMenuCtl() == true;
+      else
+      {
+        menu_cursor_counter = menu_cursor_counter_min;
+      }
+
+      return;
+    }
+
+    if (menu_cursor_counter == 1 || menu_cursor_counter == -1)
+    {
+      if (menu_cursor_counter == 1)
+      {
+        determine_selected_beam_menu(Game::PRIME_1);
+      }
+      set_cursor_pos(0, 0);
+      write32(0, cursor_base + 0x9c);
+      write32(0, cursor_base + 0x15c);
+    }
+
+    if (menu_cursor_counter != 0)
+    {
+      if (menu_cursor_counter > 0)
+      {
+        menu_cursor_counter--;
+      }
+      // menu_cursor_counter < 0
+      else
+      {
+        menu_cursor_counter++;
+      }
+
+      write32(0, mp1_static.yaw_vel_address);
+      return;
+    }
+
+  }
+  // End of addition.
+
+
   handle_beam_visor_switch(prime_one_beams, prime_one_visors);
 
   // Allows freelook in grapple, otherwise we are orbiting (locked on) to something
@@ -160,6 +319,65 @@ void FpsControls::run_mod_mp2(Region region) {
   if (read32(mp2_static.load_state_address) != 1) {
     return;
   }
+
+  // Added by LT_Schmiddy
+  if (mp2_static.cursor_ptr_address != 0)
+  {
+    u32 cursor_base = read32(read32(mp2_static.cursor_ptr_address) + mp2_static.cursor_offset);
+    //Core::DisplayMessage(std::to_string(cursor_base).c_str(), 1000);
+    if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
+    {
+      handle_cursor(cursor_base + 0x9c, cursor_base + 0x15c, 0.95f, 0.90f);
+      //handle_cursor(0x807a7b7c, 0x807a7b7c + 0xc0, 0.95f, 0.90f);
+      write32(0, cplayer_address + 0x178);
+
+      // Set the counter to a positive for the beam menu, negative for the visor menu.
+      if (CheckBeamMenuCtl())
+      {
+        menu_cursor_counter = menu_cursor_counter_max;
+      }
+      // CheckVisorMenuCtl() == true;
+      else
+      {
+        menu_cursor_counter = menu_cursor_counter_min;
+      }
+
+      return;
+    }
+
+    if (menu_cursor_counter == 1 || menu_cursor_counter == -1)
+    {
+      if (menu_cursor_counter == 1)
+      {
+        determine_selected_beam_menu(Game::PRIME_2);
+      }
+      set_cursor_pos(0, 0);
+      write32(0, cursor_base + 0x9c);
+      //write32(0, 0x807a7b7c);
+      write32(0, cursor_base + 0x15c);
+      //write32(0, 0x807a7b7c + 0xc0);
+    }
+
+    if (menu_cursor_counter != 0)
+    {
+      if (menu_cursor_counter > 0)
+      {
+        menu_cursor_counter--;
+      }
+      // menu_cursor_counter < 0
+      else
+      {
+        menu_cursor_counter++;
+      }
+
+      write32(0, cplayer_address + 0x178);
+      return;
+    }
+  }
+  // End of addition.
+
+
+
   
   // HACK ooo
   powerups_ptr_address = cplayer_address + 0x12ec;
@@ -218,6 +436,96 @@ void FpsControls::run_mod_mp3() {
     return;
   }
 
+    // Added by LT_Schmiddy
+  // Core::DisplayMessage(std::to_string(cursor_base).c_str(), 1000);
+  if (CheckVisorMenuCtl())
+  {
+    // CheckVisorMenuCtl() == true;
+
+    menu_cursor_counter = menu_cursor_counter_min;
+    mp3_handle_cursor(false);
+
+    return;
+  }
+
+  if (menu_cursor_counter != 0)
+  {
+
+    if (menu_cursor_counter == -1)
+    {
+      set_cursor_pos(0, 0);
+      mp3_handle_cursor(true);
+      //write8(0, mp3_static.cursor_dlg_enabled_address);
+
+    }
+
+
+    if (menu_cursor_counter < 0)
+    {
+      menu_cursor_counter++;
+    }
+
+    write32(0, cplayer_address + 0x178);
+    return;
+  }
+
+  powerups_ptr_address = cplayer_address + 0x35a8;
+  handle_beam_visor_switch({}, prime_three_visors);
+
+  
+  // This is VERY LIKELY not to be "boss address" as that would be dynamic (LOL)
+  // this is just something that always seems to match every ridley fight, but
+  // nowhere else (except defense drone). Never looked into it. Never will. This
+  // stupid game cannot be debugged, I just don't care about it anymore.
+
+  //if (read8(mp3_static.cursor_dlg_enabled_address) ||
+      //read64(mp3_static.boss_id_address) == mp3_static.boss_id)
+  //{
+
+  //if (read64(mp3_static.boss_id_address) == mp3_static.boss_id && !fighting_ridley)
+  if (read32(mp3_static.boss_id_address) == mp3_static.boss_id)
+  {
+
+    if (!fighting_ridley)
+    {
+      fighting_ridley = true;
+
+       //set_state(ModState::CODE_DISABLED);
+      Core::DisplayMessage("Fighting Ridley", 1000);
+    }
+    ridley_fight_over_cooldown_timer = ridley_fight_over_cooldown;
+  }
+  
+  else
+  {
+    if (fighting_ridley)
+    {
+      if (ridley_fight_over_cooldown_timer > 0)
+      {
+        ridley_fight_over_cooldown_timer--;
+      }
+      else
+      {
+        fighting_ridley = false;
+         //set_state(ModState::ENABLED);
+        Core::DisplayMessage("Ridley Defeated", 1000);
+      }
+    }
+  }
+
+  if (read8(mp3_static.cursor_dlg_enabled_address) || fighting_ridley) {
+    mp3_handle_cursor(false);
+    return;
+  }
+  else
+  {
+    mp3_handle_cursor(true);
+  }
+  
+  
+
+  // End of addition.
+
   //u32 obj_list_iterator = read32(read32(mp3_static.cplayer_ptr_address - 4) + 0x1018) + 4;
   //const u32 base = obj_list_iterator;
   //while (true) {
@@ -244,29 +552,9 @@ void FpsControls::run_mod_mp3() {
   //  obj_list_iterator = (base + next_id * 8);
   //}
 
-  // HACK ooo
-  powerups_ptr_address = cplayer_address + 0x35a8;
-  handle_beam_visor_switch({}, prime_three_visors);
+  // HACK ooo 
 
-  // This is VERY LIKELY not to be "boss address" as that would be dynamic (LOL)
-  // this is just something that always seems to match every ridley fight, but
-  // nowhere else (except defense drone). Never looked into it. Never will. This
-  // stupid game cannot be debugged, I just don't care about it anymore.
-  if (read8(mp3_static.cursor_dlg_enabled_address) ||
-    read64(mp3_static.boss_id_address) == mp3_static.boss_id) {
-    if (read64(mp3_static.boss_id_address) == mp3_static.boss_id && !fighting_ridley) {
-      fighting_ridley = true;
-      set_state(ModState::CODE_DISABLED);
-    }
-    mp3_handle_cursor(false);
-  }
-  else {
-    if (fighting_ridley) {
-      fighting_ridley = false;
-      set_state(ModState::ENABLED);
-    }
-    mp3_handle_cursor(true);
-  }
+  
 
   if (!read8(cplayer_address + 0x378) && read8(mp3_static.lockon_address)) {
     write32(0, cplayer_address + 0x174);
@@ -854,11 +1142,15 @@ void FpsControls::init_mod_mp1(Region region) {
     code_changes.emplace_back(0x80183a64, 0x60000000);
     code_changes.emplace_back(0x8017661c, 0x60000000);
     // Cursor location, sets to f17 (always 0 due to little use)
-    code_changes.emplace_back(0x802fb5b4, 0xd23f009c);
+    //code_changes.emplace_back(0x802fb5b4, 0xd23f009c);
+    //code_changes.emplace_back(0x8019fbcc, 0x60000000);
+
+    // Added by LT_Schmiddy. Fully disable writing cursor location:
+    code_changes.emplace_back(0x802fb5b4, 0x60000000);
     code_changes.emplace_back(0x8019fbcc, 0x60000000);
 
     // Disable Beams/Visor Menu, conditional -> unconditional branch
-    code_changes.emplace_back(0x80075cd0, 0x48000044);
+    //code_changes.emplace_back(0x80075cd0, 0x48000044);
     add_beam_change_code_mp1(0x8018e544);
 
     mp1_static.yaw_vel_address = 0x804d3d38;
@@ -868,6 +1160,11 @@ void FpsControls::init_mod_mp1(Region region) {
     mp1_static.orbit_state_address = 0x804d3f20;
     mp1_static.lockon_address = 0x804c00b3;
     mp1_static.tweak_player_address = 0x804ddff8;
+
+    // Added by LTSchmiddy:
+    mp1_static.cursor_ptr_address = 0x804d3b30;
+    mp1_static.cursor_offset = 0xc54;
+
     powerups_ptr_address = 0x804bfcd4;
   }
   else if (region == Region::PAL) {
@@ -951,17 +1248,44 @@ void FpsControls::init_mod_mp2(Region region) {
     code_changes.emplace_back(0x80135b20, 0x60000000);
     code_changes.emplace_back(0x8008bb48, 0x60000000);
     code_changes.emplace_back(0x8008bb18, 0x60000000);
-    code_changes.emplace_back(0x803054a0, 0xd23f009c);
+
+    // Cursor location, sets to f17 (always 0 due to little use)
+    //code_changes.emplace_back(0x803054a0, 0xd23f009c);
+
+    // Added by LTSchmiddy: NOP on setting cursor location.
+    code_changes.emplace_back(0x803054a0, 0x60000000);
     code_changes.emplace_back(0x80169dbc, 0x60000000);
+    // It seems there may be other locations trying to set cursor location...
+
+
+    //Branch
     code_changes.emplace_back(0x80143d00, 0x48000050);
 
     // Remove Beams/Visors Menu
-    code_changes.emplace_back(0x8006fb58, 0x48000044);
+    //code_changes.emplace_back(0x8006fb58, 0x48000044);
     add_beam_change_code_mp2(0x8018cc88);
 
     mp2_static.cplayer_ptr_address = 0x804e87dc;
     mp2_static.load_state_address = 0x804e8824;
     mp2_static.lockon_address = 0x804e894f;
+
+    /*
+    Added by LTSchmiddy:
+    I found the cursor addresses referenced at these addresses. But, since non of them ever triggered a
+    memory break point, I'm really sure what to make of it... And I'm pretty sure that the value they
+    all point to, 0x807ccd60 for me, isn't in static memory space.
+    0x804ff404
+    0x804ff44c
+    0x804ff494
+    0x804ff4dc
+
+    Then again, MP3's static cursor address in in the 0x806xxxxx range... maybe it is static?
+
+    */
+
+    mp2_static.cursor_ptr_address = 0x804ff404;
+    mp2_static.cursor_offset = 0xc54;
+
   }
   else if (region == Region::PAL) {
     code_changes.emplace_back(0x8008e30C, 0xc0430184);
@@ -1007,7 +1331,8 @@ void FpsControls::init_mod_mp3(Region region) {
     code_changes.emplace_back(0x8017f88c, 0x60000000);
     
     // Remove visors menu
-    code_changes.emplace_back(0x800614ec, 0x48000018);
+    //code_changes.emplace_back(0x800614ec, 0x48000018);
+
     add_control_state_hook_mp3(0x80005880, Region::NTSC);
     add_grapple_slide_code_mp3(0x8017f2a0);
 
@@ -1016,7 +1341,9 @@ void FpsControls::init_mod_mp3(Region region) {
     mp3_static.cursor_ptr_address = 0x8066fd08;
     mp3_static.cursor_offset = 0xc54;
     mp3_static.boss_id_address = 0x805c6f44;
-    mp3_static.boss_id = 0x000201cd442f0000;
+    // LTSchmiddy... the original value didn't work for me...
+    //mp3_static.boss_id = 0x000201cd442f0000;
+    mp3_static.boss_id = 0x442f0000;
     mp3_static.lockon_address = 0x805c6db7;
     mp3_static.gun_lag_toc_offset = 0x5ff0;
   }

@@ -10,6 +10,11 @@
 namespace prime {
 void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_device_source);
 
+// Added by LT_Schmiddy. For Beam Menu Mouse Cursor:
+bool CheckBeamMenuCtl();
+bool CheckVisorMenuCtl();
+// End of addition.
+
 bool CheckBeamCtl(int beam_num);
 bool CheckVisorCtl(int visor_num);
 bool CheckBeamScrollCtl(bool direction);

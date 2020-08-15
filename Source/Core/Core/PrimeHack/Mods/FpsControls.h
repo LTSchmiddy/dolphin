@@ -29,6 +29,9 @@ private:
   void mp3_handle_cursor(bool lock);
 
   void run_mod_menu(Region region);
+  // Added by LTSchmiddy:
+  void determine_selected_beam_menu(Game game);
+
   void run_mod_mp1();
   void run_mod_mp2(Region region);
   void run_mod_mp3();
@@ -73,6 +76,9 @@ private:
       u32 orbit_state_address;
       u32 lockon_address;
       u32 tweak_player_address;
+      // Added by LTSchmiddy
+      u32 cursor_ptr_address;
+      u32 cursor_offset;
     } mp1_static;
 
     struct {
@@ -87,6 +93,9 @@ private:
       u32 cplayer_ptr_address;
       u32 load_state_address;
       u32 lockon_address;
+      // Added by LTSchmiddy
+      u32 cursor_ptr_address;
+      u32 cursor_offset;
     } mp2_static;
 
     struct {

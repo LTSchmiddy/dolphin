@@ -67,6 +67,19 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   hack_mgr.enable_mod("skip_cutscene");
 }
 
+
+// Added by LT_Schmiddy. For Beam Menu Mouse Cursor:
+bool CheckBeamMenuCtl()
+{
+  return Wiimote::CheckBeamMenu();
+}
+
+bool CheckVisorMenuCtl()
+{
+  return Wiimote::CheckVisorMenu();
+}
+// End of addition
+
 bool CheckBeamCtl(int beam_num) {
   return Wiimote::CheckBeam(beam_num);
 }
