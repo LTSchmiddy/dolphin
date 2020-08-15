@@ -33,11 +33,13 @@
 #include "DolphinQt/Config/Mapping/HotkeyStatesOther.h"
 #include "DolphinQt/Config/Mapping/HotkeyTAS.h"
 #include "DolphinQt/Config/Mapping/HotkeyWii.h"
+#include "DolphinQt/Config/Mapping/HotkeyPrimeHack.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtension.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtensionMotionInput.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtensionMotionSimulation.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuGeneral.h"
-#include "DolphinQt/Config/Mapping/PrimeHackEmuGeneral.h"
+#include "DolphinQt/Config/Mapping/PrimeHackEmuWii.h"
+#include "DolphinQt/Config/Mapping/PrimeHackEmuGC.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuMotionControl.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuMotionControlIMU.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
@@ -360,6 +362,9 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     widget = new GCPadEmu(this);
     setWindowTitle(tr("GameCube Controller at Port %1").arg(GetPort() + 1));
     AddWidget(tr("GameCube Controller"), widget);
+    m_primehack_tab =
+      AddWidget(PRIMEHACK_TAB_NAME, new PrimeHackEmuGC(this));
+
     break;
   case Type::MAPPING_GC_MICROPHONE:
     widget = new GCMicrophone(this);
@@ -372,7 +377,6 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     auto* extension = new WiimoteEmuExtension(this);
     auto* extension_motion_input = new WiimoteEmuExtensionMotionInput(this);
     auto* extension_motion_simulation = new WiimoteEmuExtensionMotionSimulation(this);
-    auto* primehack = new PrimeHackEmuGeneral(this);
 
     widget = new WiimoteEmuGeneral(this, extension);
 
@@ -387,7 +391,7 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     m_extension_motion_input_tab =
         AddWidget(EXTENSION_MOTION_INPUT_TAB_NAME, extension_motion_input);
     m_primehack_tab =
-      AddWidget(PRIMEHACK_TAB_NAME, primehack);
+      AddWidget(PRIMEHACK_TAB_NAME, new PrimeHackEmuWii(this));
 
     // Hide tabs by default. "Nunchuk" selection triggers an event to show them.
     ShowExtensionMotionTabs(false);
@@ -411,6 +415,7 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     AddWidget(tr("3D"), new Hotkey3D(this));
     AddWidget(tr("Save and Load State"), new HotkeyStates(this));
     AddWidget(tr("Other State Management"), new HotkeyStatesOther(this));
+    AddWidget(tr("PrimeHack"), new HotkeyPrimeHack(this));
     setWindowTitle(tr("Hotkey Settings"));
     break;
   }

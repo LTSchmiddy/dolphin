@@ -99,6 +99,10 @@ bool CheckBeamScrollCtl(bool direction) {
 bool CheckSpringBallCtl() {
   return Wiimote::CheckSpringBall();
 }
+
+bool ImprovedMotionControls() {
+  return Wiimote::CheckImprovedMotions();
+}
   
 bool CheckForward() {
   return Wiimote::CheckForward();
@@ -153,7 +157,7 @@ bool GetEnableSecondaryGunFX() {
 }
 
 bool GetAutoArmAdjust() {
-  return Config::Get(Config::ARMPOSITION_MODE) == 1;
+  return Config::Get(Config::ARMPOSITION_MODE) == 0;
 }
 
 bool GetToggleArmAdjust() {

@@ -25,12 +25,12 @@ namespace {
   constexpr u32 ORBIT_STATE_GRAPPLE = 5;
 }  // namespace
 
-  const int8_t menu_cursor_counter_max = 5;
-  const int8_t menu_cursor_counter_min = -5;
-  int8_t menu_cursor_counter = 0;
+  const int menu_cursor_counter_max = 5;
+  const int menu_cursor_counter_min = -5;
+  int menu_cursor_counter = 0;
 
-  uint8_t ridley_fight_over_cooldown = 30;
-  uint8_t ridley_fight_over_cooldown_timer = 0;
+  //u8 ridley_fight_over_cooldown = 30;
+  //u8 ridley_fight_over_cooldown_timer = 0;
 
 void FpsControls::run_mod(Game game, Region region) {
   switch (game) {
@@ -436,6 +436,7 @@ void FpsControls::run_mod_mp3() {
     return;
   }
 
+
     // Added by LT_Schmiddy
   // Core::DisplayMessage(std::to_string(cursor_base).c_str(), 1000);
   if (CheckVisorMenuCtl())
@@ -471,18 +472,106 @@ void FpsControls::run_mod_mp3() {
 
   powerups_ptr_address = cplayer_address + 0x35a8;
   handle_beam_visor_switch({}, prime_three_visors);
-
+    
   
+  // Handle Interactable Entities
+  bool lock_camera = false;
+
+  u32 obj_list_iterator = read32(read32(mp3_static.cplayer_ptr_address - 4) + 0x1018) + 4;
+  const u32 base = obj_list_iterator;
+  while (true) {
+    u32 obj = read32(obj_list_iterator);
+    u32 flags = read32(obj + 0x38);
+
+    bool should_process = false;
+    if (flags & 0x20000000) {
+      should_process = ((flags >> 8) & 0x2000) == 0;
+    }
+    should_process |= ((flags >> 8) & 0x1000) != 0;
+
+    if (should_process) {
+      u32 vt = read32(obj);
+      u32 vtf = read32(vt + 0xc);
+
+      if (vtf == 0x802e0dac) { // ensure Accept is this function
+        u32 const st = read32(obj + 0x14c);
+
+        if (ImprovedMotionControls()) {
+          if (st == 3) {
+            u32 const val = read32(obj + 0x154);
+            float step = *reinterpret_cast<float const *>(&val);
+
+            if (CheckForward())
+              step += 0.05f;
+            if (CheckBack())
+              step -= 0.05f;
+
+            writef32(std::clamp(step, 0.f, 1.f), obj + 0x154);
+          }
+        }
+
+        DevInfo("OBJ", "(state: %x) (addr: %x) (flags: %x)", st, obj, read32(obj + 0x38));
+
+        // if object is active
+        if (st > 0) {
+          // Using flags as identifiers is crude. Better system to come.
+          switch (flags) {
+            case 0x200001d4:
+            case 0x200001c0:
+            case 0x200001c4:
+            case 0x200001ce:
+              break;
+
+            default:
+              lock_camera = true;
+          }
+        }
+      }
+      //if (vtf == 0x802e0de4) {
+      //  if (read32(obj + 0x204) == 1) { // Rotary puzzle
+      //    writef32(1.f, obj + 0x1fc);
+      //    write32(2, obj + 0x204);
+
+      //    //DevInfo("Rotatory Puzzle", "%x", obj);
+      //  }
+      //}
+    }
+
+    u16 next_id = read16(obj_list_iterator + 6);
+    if (next_id == 0xffff) {
+      break;
+    }
+
+    obj_list_iterator = (base + next_id * 8);
+  }
+
+  if (lock_camera)
+    return;
+
   // This is VERY LIKELY not to be "boss address" as that would be dynamic (LOL)
   // this is just something that always seems to match every ridley fight, but
   // nowhere else (except defense drone). Never looked into it. Never will. This
   // stupid game cannot be debugged, I just don't care about it anymore.
 
-  //if (read8(mp3_static.cursor_dlg_enabled_address) ||
-      //read64(mp3_static.boss_id_address) == mp3_static.boss_id)
-  //{
+  if (read8(mp3_static.cursor_dlg_enabled_address) ||
+    read64(mp3_static.boss_id_address) == mp3_static.boss_id) {
+    if (read64(mp3_static.boss_id_address) == mp3_static.boss_id && !fighting_ridley) {
+      fighting_ridley = true;
+      set_state(ModState::CODE_DISABLED);
+    }
+    mp3_handle_cursor(false);
+  }
+  else {
+    if (fighting_ridley) {
+      fighting_ridley = false;
+      set_state(ModState::ENABLED);
+    }
+    mp3_handle_cursor(true);
+  }
 
-  //if (read64(mp3_static.boss_id_address) == mp3_static.boss_id && !fighting_ridley)
+    // The original Ridley Fight detection code wasn't working for me. I found this implementation to
+  /* be more reliable:
+
   if (read32(mp3_static.boss_id_address) == mp3_static.boss_id)
   {
 
@@ -490,12 +579,12 @@ void FpsControls::run_mod_mp3() {
     {
       fighting_ridley = true;
 
-       //set_state(ModState::CODE_DISABLED);
-      Core::DisplayMessage("Fighting Ridley", 1000);
+        //set_state(ModState::CODE_DISABLED);
+      //Core::DisplayMessage("Fighting Ridley", 1000);
     }
     ridley_fight_over_cooldown_timer = ridley_fight_over_cooldown;
   }
-  
+
   else
   {
     if (fighting_ridley)
@@ -507,8 +596,8 @@ void FpsControls::run_mod_mp3() {
       else
       {
         fighting_ridley = false;
-         //set_state(ModState::ENABLED);
-        Core::DisplayMessage("Ridley Defeated", 1000);
+          //set_state(ModState::ENABLED);
+        //Core::DisplayMessage("Ridley Defeated", 1000);
       }
     }
   }
@@ -520,41 +609,7 @@ void FpsControls::run_mod_mp3() {
   else
   {
     mp3_handle_cursor(true);
-  }
-  
-  
-
-  // End of addition.
-
-  //u32 obj_list_iterator = read32(read32(mp3_static.cplayer_ptr_address - 4) + 0x1018) + 4;
-  //const u32 base = obj_list_iterator;
-  //while (true) {
-  //  u32 obj = read32(obj_list_iterator);
-  //  u32 flags = read32(obj + 0x38);
-
-  //  bool should_process = false;
-  //  if (flags & 0x20000000) {
-  //    should_process = ((flags >> 8) & 0x2000) == 0;
-  //  }
-  //  should_process |= ((flags >> 8) & 0x1000) != 0;
-
-  //  if (should_process) {
-  //    u32 vt = read32(obj);
-  //    u32 vtf = read32(vt + 0xc);
-  //    if (vtf == 0x802e0dac) { // ensure Accept is this function
-  //      writef32(1, obj + 0x154);
-  //    }
-  //  }
-  //  u16 next_id = read16(obj_list_iterator + 6);
-  //  if (next_id == 0xffff) {
-  //    break;
-  //  }
-  //  obj_list_iterator = (base + next_id * 8);
-  //}
-
-  // HACK ooo 
-
-  
+  }*/
 
   if (!read8(cplayer_address + 0x378) && read8(mp3_static.lockon_address)) {
     write32(0, cplayer_address + 0x174);
@@ -1341,9 +1396,9 @@ void FpsControls::init_mod_mp3(Region region) {
     mp3_static.cursor_ptr_address = 0x8066fd08;
     mp3_static.cursor_offset = 0xc54;
     mp3_static.boss_id_address = 0x805c6f44;
+    mp3_static.boss_id = 0x000201cd442f0000;
     // LTSchmiddy... the original value didn't work for me...
-    //mp3_static.boss_id = 0x000201cd442f0000;
-    mp3_static.boss_id = 0x442f0000;
+    //mp3_static.boss_id = 0x442f0000;
     mp3_static.lockon_address = 0x805c6db7;
     mp3_static.gun_lag_toc_offset = 0x5ff0;
   }

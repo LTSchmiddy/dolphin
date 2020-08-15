@@ -364,6 +364,7 @@
     <ClCompile Include="Config\Mapping\HotkeyDebugging.cpp" />
     <ClCompile Include="Config\Mapping\HotkeyGeneral.cpp" />
     <ClCompile Include="Config\Mapping\HotkeyGraphics.cpp" />
+    <ClCompile Include="Config\Mapping\HotkeyPrimeHack.cpp" />
     <ClCompile Include="Config\Mapping\HotkeyStates.cpp" />
     <ClCompile Include="Config\Mapping\HotkeyStatesOther.cpp" />
     <ClCompile Include="Config\Mapping\HotkeyTAS.cpp" />
@@ -375,7 +376,8 @@
     <ClCompile Include="Config\Mapping\MappingNumeric.cpp" />
     <ClCompile Include="Config\Mapping\MappingWidget.cpp" />
     <ClCompile Include="Config\Mapping\MappingWindow.cpp" />
-    <ClCompile Include="Config\Mapping\PrimeHackEmuGeneral.cpp" />
+    <ClCompile Include="Config\Mapping\PrimeHackEmuGC.cpp" />
+    <ClCompile Include="Config\Mapping\PrimeHackEmuWii.cpp" />
     <ClCompile Include="Config\Mapping\WiimoteEmuExtension.cpp" />
     <ClCompile Include="Config\Mapping\WiimoteEmuExtensionMotionInput.cpp" />
     <ClCompile Include="Config\Mapping\WiimoteEmuExtensionMotionSimulation.cpp" />
@@ -464,8 +466,10 @@
   </ItemGroup>
   <!--Put standard C/C++ headers here. Headers that are listed in the QtMoc ItemGroup must NOT be listed here.-->
   <ItemGroup>
+    <ClInclude Include="Config\Mapping\HotkeyPrimeHack.h" />
     <ClInclude Include="Config\Mapping\MappingCommon.h" />
-    <ClInclude Include="Config\Mapping\PrimeHackEmuGeneral.h" />
+    <ClInclude Include="Config\Mapping\PrimeHackEmuGC.h" />
+    <ClInclude Include="Config\Mapping\PrimeHackEmuWii.h" />
     <ClInclude Include="Debugger\RegisterColumn.h" />
     <ClInclude Include="Config\Graphics\PrimeWidget.h" />
     <ClInclude Include="QtUtils\ActionHelper.h" />

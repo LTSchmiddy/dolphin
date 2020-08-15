@@ -346,6 +346,9 @@ Wiimote::Wiimote(const unsigned int index) : m_index(index)
   m_primehack_misc->controls.emplace_back(
       new ControllerEmu::Input(ControllerEmu::DoNotTranslate, "Spring Ball", "Spring Ball"));
 
+  m_primehack_misc->AddSetting(
+    &m_primehack_improved_motions, {"Improved Motion Controls", nullptr, nullptr, _trans("Improved Motion Controls")}, true);
+
   Reset();
 }
 
@@ -790,6 +793,11 @@ bool Wiimote::CheckBeamScrollCtrl(bool direction)
 bool Wiimote::CheckVisorScrollCtrl(bool direction)
 {
   return m_primehack_visors->controls[direction ? 4 : 5].get()->control_ref->State() > 0.5;
+}
+
+bool Wiimote::CheckImprovedMotions()
+{
+  return m_primehack_improved_motions.GetValue();
 }
 
 bool Wiimote::CheckSpringBallCtrl()
