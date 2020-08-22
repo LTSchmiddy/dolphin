@@ -10,6 +10,7 @@
 #include "Core/PrimeHack/Mods/CutBeamFxMP1.h"
 #include "Core/PrimeHack/Mods/DisableBloom.h"
 #include "Core/PrimeHack/Mods/FpsControls.h"
+#include "Core/PrimeHack/Mods/MorphBallCamera.h"
 #include "Core/PrimeHack/Mods/Invulnerability.h"
 #include "Core/PrimeHack/Mods/Noclip.h"
 #include "Core/PrimeHack/Mods/SkipCutscene.h"
@@ -48,6 +49,7 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   hack_mgr.add_mod("disable_bloom", std::make_unique<DisableBloom>());
   hack_mgr.add_mod("fps_controls", std::make_unique<FpsControls>());
   hack_mgr.add_mod("invulnerability", std::make_unique<Invulnerability>());
+  hack_mgr.add_mod("morphball_camera", std::make_unique<MorphBallCamera>());
   hack_mgr.add_mod("noclip", std::make_unique<Noclip>());
   hack_mgr.add_mod("skip_cutscene", std::make_unique<SkipCutscene>());
   hack_mgr.add_mod("springball_button", std::make_unique<SpringballButton>());
@@ -63,6 +65,7 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
 
   hack_mgr.enable_mod("fov_modifier");
   hack_mgr.enable_mod("fps_controls");
+  hack_mgr.enable_mod("morphball_camera");
   hack_mgr.enable_mod("springball_button");
   hack_mgr.enable_mod("skip_cutscene");
 }

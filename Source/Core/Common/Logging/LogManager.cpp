@@ -143,6 +143,9 @@ LogManager::LogManager()
   m_log[WIIMOTE] = {"Wiimote", "Wii Remote"};
   m_log[WII_IPC] = {"WII_IPC", "WII IPC"};
 
+  // Adding PrimeHack Logging:
+  m_log[PRIMEHACK] = {"PrimeHack", "PrimeHack"};
+
   RegisterListener(LogListener::FILE_LISTENER,
                    new FileLogListener(File::GetUserPath(F_MAINLOG_IDX)));
   RegisterListener(LogListener::CONSOLE_LISTENER, new ConsoleListener());

@@ -41,7 +41,19 @@ void FpsControls::run_mod(Game game, Region region) {
   }
 }
 
-void FpsControls::calculate_pitch_delta() {
+bool FpsControls::ball_check(u32 ball_address)
+{
+  u32 ball_state = read32(ball_address);
+
+  if ((ball_state == 1 || ball_state == 2)) {
+    return true;
+  }
+
+  return false;
+}
+
+void FpsControls::calculate_pitch_delta()
+{
   const float compensated_sens = GetSensitivity() * TURNRATE_RATIO / 60.f;
 
   pitch += static_cast<float>(GetVerticalAxis()) * compensated_sens *
@@ -107,6 +119,11 @@ void FpsControls::run_mod_menu(Region region) {
 }
 
 void FpsControls::run_mod_mp1() {
+  // LTSchmiddy: Don't run FP camera logic in Morphball mode.
+  if (ball_check(get_player_address() + 0x2f4)) {
+    return;
+  }
+
   handle_beam_visor_switch(prime_one_beams, prime_one_visors);
 
   // Allows freelook in grapple, otherwise we are orbiting (locked on) to something
@@ -150,12 +167,20 @@ void FpsControls::run_mod_mp1_gc() {
 }
 
 void FpsControls::run_mod_mp2(Region region) {
+
   // VERY similar to mp1, this time CPlayer isn't TOneStatic (presumably because
   // of multiplayer mode in the GCN version?)
   u32 cplayer_address = read32(mp2_static.cplayer_ptr_address);
   if (!mem_check(cplayer_address)) {
     return;
   }
+
+  // LTSchmiddy: Don't run FP camera logic in Morphball mode.
+  if (ball_check(cplayer_address + 0x374))
+  {
+    return;
+  }
+
 
   if (read32(mp2_static.load_state_address) != 1) {
     return;
@@ -215,6 +240,11 @@ void FpsControls::run_mod_mp3() {
     if (read8(mp3_static.cursor_dlg_enabled_address)) {
       mp3_handle_cursor(false);
     }
+    return;
+  }
+
+  if (ball_check(cplayer_address + 0x358))
+  {
     return;
   }
 

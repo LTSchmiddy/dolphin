@@ -22,6 +22,8 @@ private:
   // ------------------------------
   // -----Active Mod Functions-----
   // ------------------------------
+  bool ball_check(u32 ball_address);
+
   void calculate_pitch_delta();
   float calculate_yaw_vel();
   void handle_beam_visor_switch(std::array<int, 4> const &beams,

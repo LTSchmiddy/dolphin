@@ -470,6 +470,8 @@ add_library(core
   PrimeHack/Mods/DisableBloom.h
   PrimeHack/Mods/FpsControls.cpp
   PrimeHack/Mods/Invulnerability.h
+	PrimeHack/Mods/MorphBallCamera.h
+  PrimeHack/Mods/MorphBallCamera.cpp
   PrimeHack/Mods/Noclip.cpp
   PrimeHack/Mods/SkipCutscene.h
   PrimeHack/Mods/SpringballButton.cpp
