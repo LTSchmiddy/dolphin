@@ -760,8 +760,6 @@ bool Wiimote::CheckForButtonPress()
   return (buttons != 0 || GetActiveExtension()->IsButtonPressed());
 }
 
-// Added by LT_Schmiddy:
-// Needed to check for Beam and Visor Buttons:
 bool Wiimote::CheckVisorMenuCtrl()
 {
   // Index for '-' button: 4
@@ -773,7 +771,7 @@ bool Wiimote::CheckBeamMenuCtrl()
   // Index for '+' button: 5
   return m_buttons->controls[5].get()->control_ref->State() > 0.5;
 }
-// End of addition
+
 
 bool Wiimote::CheckVisorCtrl(int visorcount)
 {
