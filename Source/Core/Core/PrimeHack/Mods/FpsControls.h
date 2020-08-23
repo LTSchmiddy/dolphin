@@ -76,9 +76,12 @@ private:
       u32 orbit_state_address;
       u32 lockon_address;
       u32 tweak_player_address;
-      // Added by LTSchmiddy
+
       u32 cursor_ptr_address;
       u32 cursor_offset;
+
+      u32 cplayer_address;
+
     } mp1_static;
 
     struct {
@@ -87,13 +90,14 @@ private:
       u32 angvel_max_address;
       u32 orbit_state_address;
       u32 tweak_player_address;
+      u32 cplayer_address;
     } mp1_gc_static;
 
     struct {
       u32 cplayer_ptr_address;
       u32 load_state_address;
       u32 lockon_address;
-      // Added by LTSchmiddy
+
       u32 cursor_ptr_address;
       u32 cursor_offset;
     } mp2_static;
@@ -103,10 +107,12 @@ private:
       u32 cursor_dlg_enabled_address;
       u32 cursor_ptr_address;
       u32 cursor_offset;
+      u32 boss_info_address;
       u32 boss_id_address;
       u64 boss_id;
       u32 lockon_address;
       u32 gun_lag_toc_offset;
+      u32 motion_vtf_address;
     } mp3_static;
   };
 

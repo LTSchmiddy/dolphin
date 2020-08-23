@@ -593,8 +593,6 @@ void HotkeyScheduler::Run()
       {
         const bool new_value = !SConfig::GetInstance().bPrimeInvulnerability;
         SConfig::GetInstance().bPrimeInvulnerability = new_value;
-
-        OSD::AddMessage(StringFromFormat("Invulnerability: %s", new_value ? "Enabled" : "Disabled"));
       }
 
       if (IsHotkey(HK_SKIP_CUTSCENE))
@@ -610,7 +608,14 @@ void HotkeyScheduler::Run()
       SConfig::GetInstance().bPrimeInvulnerability = false;
       SConfig::GetInstance().bPrimeNoclip = false;
     }
-    
+
+    if (IsHotkey(HK_MOTION_LOCK))
+    {
+      const bool new_value = !Config::Get(Config::LOCKCAMERA_IN_PUZZLES);
+      Config::SetCurrent(Config::LOCKCAMERA_IN_PUZZLES, new_value);
+
+      OSD::AddMessage(StringFromFormat("Lock Camera in Motions: %s", new_value ? "Enabled" : "Disabled"));
+    }
 
     // Savestates
     for (u32 i = 0; i < State::NUM_STATES; i++)

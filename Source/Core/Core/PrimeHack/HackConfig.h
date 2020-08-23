@@ -29,6 +29,7 @@ bool CheckJump();
 
 void SetEFBToTexture(bool toggle);
 bool UseMPAutoEFB();
+bool LockCameraInPuzzles();
 bool GetEFBTexture();
 bool GetBloom();
 
