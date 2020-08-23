@@ -159,6 +159,11 @@ namespace prime
 
        prev_ball_pos.write_to(acm.address + 0x2d8);
 
+       //vec3 spline_vector = camera_tf.loc();
+       //spline_vector.write_to(acm.address + 0x33c);
+       //camera_tf.loc().write_to(acm.address + 0x33c);
+       camera_tf.loc().write_to(acm.address + 0x330);
+
     }
 
 
