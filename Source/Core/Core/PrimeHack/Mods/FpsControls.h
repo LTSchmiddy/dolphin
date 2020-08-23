@@ -18,7 +18,27 @@ public:
   void run_mod(Game game, Region region) override;
   void init_mod(Game game, Region region) override;
 
+
+
 private:
+  // Beam/Visor Menu Control Enum:
+  enum class Beam_Visor_Menu_State
+  {
+    VISOR_MENU_OPEN = -5,
+    SET_VISOR_IN_3 = -4,
+    SET_VISOR_IN_2 = -3,
+    SET_VISOR_IN_1 = -2,
+    SET_VISOR = -1,
+
+    BEAM_MENU_OPEN = 5,
+    SET_BEAM_IN_3 = 4,
+    SET_BEAM_IN_2 = 3,
+    SET_BEAM_IN_1 = 2,
+    SET_BEAM = 1,
+
+    IDLE = 0,
+  };
+
   // ------------------------------
   // -----Active Mod Functions-----
   // ------------------------------
@@ -30,7 +50,11 @@ private:
 
   void run_mod_menu(Region region);
   // Added by LTSchmiddy:
+
+  bool beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game);
+  FpsControls::Beam_Visor_Menu_State beam_visor_menu_next_state(Beam_Visor_Menu_State state);
   void determine_selected_beam_menu(Game game);
+
 
   void run_mod_mp1();
   void run_mod_mp2(Region region);
@@ -118,5 +142,7 @@ private:
 
   // We store our pitch value interally to have full control over it
   float pitch;
+
+  Beam_Visor_Menu_State menu_cursor_state = Beam_Visor_Menu_State::IDLE;
 };
 }
