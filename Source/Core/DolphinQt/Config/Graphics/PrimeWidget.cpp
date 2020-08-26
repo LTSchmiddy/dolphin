@@ -47,7 +47,7 @@ void PrimeWidget::CreateWidgets()
 
   m_autoefb = new GraphicsBool(tr("Auto Toggle EFB copies to Texture"), Config::AUTO_EFB);
   m_disable_bloom = new GraphicsBool(tr("Disable Bloom"), Config::DISABLE_BLOOM);
-  m_motions_lock = new GraphicsBool(tr("Lock Camera in Motion Puzzles [Warning]"), Config::LOCKCAMERA_IN_PUZZLES);
+  m_motions_lock = new GraphicsBool(tr("Lock Camera in Motion Puzzles"), Config::LOCKCAMERA_IN_PUZZLES);
   m_toggle_arm_position = new GraphicsBool(tr("Toggle Viewmodel Adjustment"), Config::TOGGLE_ARM_REPOSITION);
   m_toggle_culling = new GraphicsBool(tr("Disable Culling"), Config::TOGGLE_CULLING);
   m_toggle_secondaryFX = new GraphicsBool(tr("Enable GCN Gun Effects"), Config::ENABLE_SECONDARY_GUNFX);
@@ -137,24 +137,13 @@ void PrimeWidget::ConnectWidgets()
       m_manual_arm_position->setEnabled(checked); 
       PrimeWidget::ArmPositionModeChanged(m_manual_arm_position->isChecked());
     });
-  connect(m_toggle_secondaryFX, &QCheckBox::clicked, this,
-    [=](bool checked)
-    {
-      if (Core::GetState() != Core::State::Uninitialized) {
-        if (m_toggle_secondaryFX->isChecked())
-          m_toggle_secondaryFX->setEnabled(false);
-      }
-    });
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
     [=](Core::State state)
     {
       if (state != Core::State::Uninitialized) {
-        if (prime::GetEnableSecondaryGunFX())
-          m_toggle_secondaryFX->setEnabled(false);
           m_toggle_culling->setEnabled(true);
       }
       else {
-        m_toggle_secondaryFX->setEnabled(true);
         if (prime::GetFov() > 96) {
           m_toggle_culling->setEnabled(false);
           m_toggle_culling->setChecked(true);
@@ -195,8 +184,7 @@ void PrimeWidget::AddDescriptions()
   static const char TR_Z_AXIS[] =
     QT_TR_NOOP("Modifies the arm position on the Z axis. This is back and forward.");
   static const char TR_MOTION_LOCK[] =
-    QT_TR_NOOP("Automatically locks the camera in ALL motion puzzles and buttons."
-  "\n\nBe warned, this will make it impossible to pass certain puzzles such as welding puzzles and keypads. There is a hotkey to toggle this setting.");
+    QT_TR_NOOP("Automatically locks the camera in all motion puzzles and buttons.");
 
   AddDescription(m_autoefb, TR_AUTO_EFB);
   AddDescription(m_motions_lock, TR_MOTION_LOCK);

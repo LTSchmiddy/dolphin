@@ -1,6 +1,7 @@
 #include "Core/PrimeHack/Mods/FpsControls.h"
 
 #include "Core/PrimeHack/PrimeUtils.h"
+#include "Common/BitUtils.h"
 
 namespace prime {
 namespace {  
@@ -18,7 +19,27 @@ namespace {
     std::make_tuple<int, int>(2, 0x0d), std::make_tuple<int, int>(3, 0x0e)};
 
   constexpr u32 ORBIT_STATE_GRAPPLE = 5;
+
+  bool is_string_ridley(u32 string_base) {
+    if (string_base == 0) {
+      return false;
+    }
+
+    const char ridley_str[] = "Meta Ridley";
+    constexpr auto str_len = sizeof(ridley_str) - 1;
+    int str_idx = 0;
+
+    while (read16(string_base) != 0 && str_idx < str_len) {
+      if (static_cast<char>(read16(string_base)) != ridley_str[str_idx]) {
+        return false;
+      }
+      str_idx++;
+      string_base += 2;
+    }
+    return str_idx == str_len && read16(string_base) == 0;
+  }
 }
+
 void FpsControls::run_mod(Game game, Region region) {
   switch (game) {
   case Game::MENU:
@@ -144,7 +165,12 @@ void FpsControls::run_mod_mp1() {
   // Setting this to 0 allows yaw velocity (Z component of an angular momentum
   // vector) to affect the transform matrix freely
   write32(0, mp1_static.angvel_limiter_address);
-  writef32(calculate_yaw_vel(), mp1_static.yaw_vel_address);
+
+  u32 ball_state = read32(mp1_static.cplayer_address + 0x2f4);
+  if (ball_state != 1 && ball_state != 2) {
+    // Actual angular velocity Z address amazing
+    writef32(calculate_yaw_vel(), mp1_static.yaw_vel_address);
+  }
 }
 
 void FpsControls::run_mod_mp1_gc() {
@@ -158,8 +184,12 @@ void FpsControls::run_mod_mp1_gc() {
   writef32(pitch, mp1_gc_static.pitch_address);
   writef32(1.52f, mp1_gc_static.tweak_player_address + 0x134);
 
-  // Actual angular velocity Z address amazing
-  writef32(calculate_yaw_vel() / 200.f, mp1_gc_static.yaw_vel_address);
+  u32 ball_state = read32(mp1_gc_static.cplayer_address + 0x2f4);
+  if (ball_state != 1 && ball_state != 2) {
+    // Actual angular velocity Z address amazing
+    writef32(calculate_yaw_vel() / 200.f, mp1_gc_static.yaw_vel_address);
+  }
+
   for (int i = 0; i < 8; i++) {
     writef32(100000000.f, mp1_gc_static.angvel_max_address + i * 4);
     writef32(1.f, mp1_gc_static.angvel_max_address + i * 4 - 32);
@@ -217,7 +247,11 @@ void FpsControls::run_mod_mp2(Region region) {
     // This one's stored as degrees instead of radians
     writef32(87.0896f, tweak_player_address + 0x180);
   }
-  writef32(calculate_yaw_vel(), cplayer_address + 0x178);
+
+  u32 ball_state = read32(cplayer_address + 0x374);
+
+  if (ball_state != 1 && ball_state != 2)
+    writef32(calculate_yaw_vel(), cplayer_address + 0x178);
 }
 
 void FpsControls::mp3_handle_cursor(bool lock) {
@@ -272,13 +306,12 @@ void FpsControls::run_mod_mp3() {
       u32 vt = read32(obj);
       u32 vtf = read32(vt + 0xc);
 
-      if (vtf == 0x802e0dac) { // ensure Accept is this function
+      if (vtf == mp3_static.motion_vtf_address) { // ensure Accept is this function
         u32 const st = read32(obj + 0x14c);
 
         if (ImprovedMotionControls()) {
           if (st == 3) {
-            u32 const val = read32(obj + 0x154);
-            float step = *reinterpret_cast<float const *>(&val);
+            float step = Common::BitCast<float>(read32(obj + 0x154));
 
             if (CheckForward())
               step += 0.05f;
@@ -289,11 +322,9 @@ void FpsControls::run_mod_mp3() {
           }
         }
 
-        //DevInfo("OBJ", "(state: %x) (addr: %x) (flags: %x) (editorid: %x)", state, obj, flags, read32(obj + 0xC));
-
         if (LockCameraInPuzzles()) {
-          // if object is active
-          if (st > 0) {
+          // if object is active and isn't the ship radio at the start of the game.
+          if (st > 0 && read32(obj + 0xC) != 0x0c180263) {
             lock_camera = true;
           }
         } 
@@ -316,20 +347,23 @@ void FpsControls::run_mod_mp3() {
     obj_list_iterator = (base + next_id * 8);
   }
 
-  if (lock_camera)
-    return;
+  if (lock_camera) {
+    mp3_handle_cursor(false);
 
-  // This is VERY LIKELY not to be "boss address" as that would be dynamic (LOL)
-  // this is just something that always seems to match every ridley fight, but
-  // nowhere else (except defense drone). Never looked into it. Never will. This
-  // stupid game cannot be debugged, I just don't care about it anymore.
-  if (read8(mp3_static.cursor_dlg_enabled_address) ||
-    read64(mp3_static.boss_id_address) == mp3_static.boss_id) {
-    if (read64(mp3_static.boss_id_address) == mp3_static.boss_id && !fighting_ridley) {
+    return;
+  }
+
+  u32 boss_name_str = read32(read32(read32(read32(mp3_static.boss_info_address) + 0x6e0) + 0x24) + 0x150);
+  bool is_boss_metaridley = is_string_ridley(boss_name_str);
+
+  // Compare based on boss name string, Meta Ridley only appears once
+  if (read8(mp3_static.cursor_dlg_enabled_address) || is_boss_metaridley) {
+    if (is_boss_metaridley && !fighting_ridley) {
       fighting_ridley = true;
       set_state(ModState::CODE_DISABLED);
     }
     mp3_handle_cursor(false);
+    return;
   }
   else {
     if (fighting_ridley) {
@@ -350,8 +384,12 @@ void FpsControls::run_mod_mp3() {
   write32(0, rtoc_gun_damp);
   writef32(pitch, cplayer_address + 0x784);
 
+  u32 ball_state = read32(cplayer_address + 0x358);
+
+  if (ball_state != 1 && ball_state != 2)
+    writef32(calculate_yaw_vel(), cplayer_address + 0x174);
+
   // Nothing new here
-  writef32(calculate_yaw_vel(), cplayer_address + 0x174);
   write32(0, cplayer_address + 0x174 + 0x18);
 }
 
@@ -939,6 +977,7 @@ void FpsControls::init_mod_mp1(Region region) {
     mp1_static.orbit_state_address = 0x804d3f20;
     mp1_static.lockon_address = 0x804c00b3;
     mp1_static.tweak_player_address = 0x804ddff8;
+    mp1_static.cplayer_address = 0x804d3c20;
     powerups_ptr_address = 0x804bfcd4;
   }
   else if (region == Region::PAL) {
@@ -961,6 +1000,7 @@ void FpsControls::init_mod_mp1(Region region) {
     mp1_static.orbit_state_address = 0x804d7e60;
     mp1_static.lockon_address = 0x804c3ff3;
     mp1_static.tweak_player_address = 0x804e1f38;
+    mp1_static.cplayer_address = 0x804d7b60;
     powerups_ptr_address = 0x804c3c14;
   }
   // If I add NTSC JP
@@ -992,6 +1032,7 @@ void FpsControls::init_mod_mp1_gc(Region region) {
     mp1_gc_static.angvel_max_address = 0x8045c208 + 0x84;
     mp1_gc_static.orbit_state_address = 0x8046b97c + 0x304;
     mp1_gc_static.tweak_player_address = 0x8045c208;
+    mp1_gc_static.cplayer_address = 0x8046B97C;
   }
   else if (region == Region::PAL) {
     code_changes.emplace_back(0x8000FB4C, 0x48000048);  
@@ -1009,6 +1050,7 @@ void FpsControls::init_mod_mp1_gc(Region region) {
     mp1_gc_static.angvel_max_address = 0x803E4134 + 0x84;
     mp1_gc_static.orbit_state_address = 0x803F38A4 + 0x304;
     mp1_gc_static.tweak_player_address = 0x803E4134;
+    mp1_gc_static.cplayer_address = 0x803F38A4;
   }
   else {}
 }
@@ -1086,10 +1128,10 @@ void FpsControls::init_mod_mp3(Region region) {
     mp3_static.cursor_dlg_enabled_address = 0x805c8d77;
     mp3_static.cursor_ptr_address = 0x8066fd08;
     mp3_static.cursor_offset = 0xc54;
-    mp3_static.boss_id_address = 0x805c6f44;
-    mp3_static.boss_id = 0x000201cd442f0000;
+    mp3_static.boss_info_address = 0x8066e1ec;
     mp3_static.lockon_address = 0x805c6db7;
     mp3_static.gun_lag_toc_offset = 0x5ff0;
+    mp3_static.motion_vtf_address = 0x802e0dac;
   }
   else if (region == Region::PAL) {
     code_changes.emplace_back(0x80080ab8, 0xec010072);
@@ -1111,10 +1153,10 @@ void FpsControls::init_mod_mp3(Region region) {
     mp3_static.cursor_dlg_enabled_address = 0x805cc1d7;
     mp3_static.cursor_ptr_address = 0x80673588;
     mp3_static.cursor_offset = 0xd04;
-    mp3_static.boss_id_address = 0x805ca3c4;
-    mp3_static.boss_id = 0x00020230442f0000;
+    mp3_static.boss_info_address = 0x80671a6c;
     mp3_static.lockon_address = 0x805ca237;
     mp3_static.gun_lag_toc_offset = 0x6000;
+    mp3_static.motion_vtf_address = 0x802e0a88;
   }
   else {}
 
