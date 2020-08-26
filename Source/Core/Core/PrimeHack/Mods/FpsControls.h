@@ -48,10 +48,12 @@ private:
     std::array<std::tuple<int, int>, 4> const &visors);
   void mp3_handle_cursor(bool lock);
 
+
   void run_mod_menu(Region region);
   // Added by LTSchmiddy:
 
   bool beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game);
+  bool mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address);
   FpsControls::Beam_Visor_Menu_State beam_visor_menu_next_state(Beam_Visor_Menu_State state);
   void determine_selected_beam_menu(Game game);
 

@@ -51,8 +51,6 @@ bool is_string_ridley(u32 string_base)
 }  // namespace
 
 void FpsControls::run_mod(Game game, Region region) {
-  // re-centers the cursor, before the game begins:
-  set_cursor_pos(0, 0);
 
   switch (game) {
   case Game::MENU:
@@ -151,30 +149,22 @@ void FpsControls::run_mod_menu(Region region)
 
 bool FpsControls::beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game)
 {
-
   if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
   {
+    if (menu_cursor_state == Beam_Visor_Menu_State::IDLE)
+    {
+      set_cursor_pos(0, 0);
+    }
     handle_cursor(cursor_base + 0x9c, cursor_base + 0x15c, 0.95f, 0.90f);
     write32(0, yaw_vel_address);
 
     // Set the beam/visor menu state.
-    if (CheckBeamMenuCtl())
-    {
-      menu_cursor_state = Beam_Visor_Menu_State::BEAM_MENU_OPEN;
-    }
-    // implying that CheckVisorMenuCtl() == true instead;
-    else
-    {
-      menu_cursor_state = Beam_Visor_Menu_State::VISOR_MENU_OPEN;
-    }
-
-    return true;
+    menu_cursor_state = CheckBeamMenuCtl() ? Beam_Visor_Menu_State::BEAM_MENU_OPEN : Beam_Visor_Menu_State::VISOR_MENU_OPEN;
   }
 
   if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM || menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR)
   {
-    if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM && (game == Game::PRIME_1 || game == Game::PRIME_2))
-    {
+    if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM && (game == Game::PRIME_1 || game == Game::PRIME_2)) {
       determine_selected_beam_menu(game);
     }
     set_cursor_pos(0, 0);
@@ -184,9 +174,7 @@ bool FpsControls::beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, 
 
   if (menu_cursor_state != Beam_Visor_Menu_State::IDLE)
   {
-  
     menu_cursor_state = beam_visor_menu_next_state(menu_cursor_state);
-
     write32(0, yaw_vel_address);
     return true;
   }
@@ -427,6 +415,25 @@ void FpsControls::mp3_handle_cursor(bool lock) {
   }
 }
 
+
+bool FpsControls::mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address)
+{
+  if (CheckVisorMenuCtl())
+  {
+    // Set the beam/visor menu state.
+    menu_cursor_state = Beam_Visor_Menu_State::VISOR_MENU_OPEN;
+  }
+
+  if (menu_cursor_state != Beam_Visor_Menu_State::IDLE)
+  {
+    menu_cursor_state = beam_visor_menu_next_state(menu_cursor_state);
+    write32(0, yaw_vel_address);
+    return true;
+  }
+
+  return false;
+}
+
 // this game is        
 void FpsControls::run_mod_mp3() {
   u32 cplayer_address = read32(read32(read32(mp3_static.cplayer_ptr_address) + 0x04) + 0x2184);
@@ -439,15 +446,7 @@ void FpsControls::run_mod_mp3() {
     return;
   }
 
-  // Handle Beam/Visor Menu:
-  if (mp3_static.cursor_ptr_address != 0)
-  {
-    u32 cursor_base = read32(read32(mp3_static.cursor_ptr_address) + mp3_static.cursor_offset);
-    if (beam_visor_menu_handler(cursor_base, cplayer_address + 0x178, Game::PRIME_3))
-    {
-      return;
-    }
-  }
+
 
   powerups_ptr_address = cplayer_address + 0x35a8;
   handle_beam_visor_switch({}, prime_three_visors);
@@ -520,6 +519,8 @@ void FpsControls::run_mod_mp3() {
   u32 boss_name_str = read32(read32(read32(read32(mp3_static.boss_info_address) + 0x6e0) + 0x24) + 0x150);
   bool is_boss_metaridley = is_string_ridley(boss_name_str);
 
+
+  bool lock_cursor = true;
   // Compare based on boss name string, Meta Ridley only appears once
   if (read8(mp3_static.cursor_dlg_enabled_address) || is_boss_metaridley) {
     if (is_boss_metaridley && !fighting_ridley) {
@@ -527,15 +528,28 @@ void FpsControls::run_mod_mp3() {
       fighting_ridley = true;
       set_state(ModState::CODE_DISABLED);
     }
-    mp3_handle_cursor(false);
-    return;
+    lock_cursor = false;
+
   }
   else {
     if (fighting_ridley) {
       fighting_ridley = false;
       set_state(ModState::ENABLED);
     }
+    lock_cursor = true;
+  }
+
+  // Handle Beam/Visor Menu:
+  u32 cursor_base = read32(read32(mp3_static.cursor_ptr_address) + mp3_static.cursor_offset);
+  bool visor_menu_running = mp3_visor_menu_handler(cursor_base, cplayer_address + 0x174);
+
+  if (lock_cursor && !visor_menu_running) {
+    set_cursor_pos(0, 0);
     mp3_handle_cursor(true);
+  }
+  else {
+    mp3_handle_cursor(false);
+    return;
   }
 
 
@@ -560,6 +574,9 @@ void FpsControls::run_mod_mp3() {
 }
 
 void FpsControls::init_mod(Game game, Region region) {
+  // re-centers the cursor, before the game begins:
+  set_cursor_pos(0, 0);
+
   switch (game) {
   case Game::PRIME_1_GCN:
     init_mod_mp1_gc(region);
@@ -1149,7 +1166,7 @@ void FpsControls::init_mod_mp1(Region region) {
     mp1_static.tweak_player_address = 0x804ddff8;
     
     mp1_static.cursor_ptr_address = 0x804d3b30;
-    //mp1_static.cursor_offset = 0xc54;
+    mp1_static.cursor_offset = 0xc54;
 
     mp1_static.cplayer_address = 0x804d3c20;
 
