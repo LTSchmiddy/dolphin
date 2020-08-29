@@ -24,21 +24,11 @@ private:
   // Beam/Visor Menu Control Enum:
   enum class Beam_Visor_Menu_State
   {
-    VISOR_MENU_OPEN = -5,
-    SET_VISOR_IN_3 = -4,
-    SET_VISOR_IN_2 = -3,
-    SET_VISOR_IN_1 = -2,
     SET_VISOR = -1,
-
-    BEAM_MENU_OPEN = 5,
-    SET_BEAM_IN_3 = 4,
-    SET_BEAM_IN_2 = 3,
-    SET_BEAM_IN_1 = 2,
     SET_BEAM = 1,
 
     IDLE = 0,
   };
-
   // ------------------------------
   // -----Active Mod Functions-----
   // ------------------------------
@@ -54,8 +44,8 @@ private:
 
   bool beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game);
   bool mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address);
-  FpsControls::Beam_Visor_Menu_State beam_visor_menu_next_state(Beam_Visor_Menu_State state);
-  void determine_selected_beam_menu(Game game);
+  //FpsControls::Beam_Visor_Menu_State beam_visor_menu_next_state(Beam_Visor_Menu_State state);
+  void determine_selected_beam_visor(Game game, Beam_Visor_Menu_State beam_visor);
 
 
   void run_mod_mp1();
@@ -108,6 +98,8 @@ private:
 
       u32 cplayer_address;
 
+      u32 state_manager_address;
+
     } mp1_static;
 
     struct {
@@ -126,6 +118,8 @@ private:
 
       u32 cursor_ptr_address;
       u32 cursor_offset;
+
+      u32 state_manager_address;
     } mp2_static;
 
     struct {
@@ -139,6 +133,9 @@ private:
       u32 lockon_address;
       u32 gun_lag_toc_offset;
       u32 motion_vtf_address;
+
+      //u32 state_mgr_ptr_address;
+
     } mp3_static;
   };
 

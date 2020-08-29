@@ -25,6 +25,8 @@ static std::array<bool, 4> visor_owned = {false, false, false, false};
 static bool noclip_enabled = false;
 
 static int requested_beam = -1;
+static int requested_visor = -1;
+static int last_requested_visor = -1;
 
 std::array<std::array<CodeChange, static_cast<int>(Game::MAX_VAL) + 1>,
   static_cast<int>(Region::MAX_VAL) + 1> noclip_enable_codes;
@@ -102,7 +104,12 @@ void request_beam_change(int beam)
 {
   requested_beam = beam;
 }
-// End of addition.
+
+void request_visor_change(int visor)
+{
+  requested_visor = visor;
+}
+
 
 
 void write_invalidate(u32 address, u32 value) {
@@ -111,6 +118,15 @@ void write_invalidate(u32 address, u32 value) {
 }
 
 std::tuple<int, int> get_visor_switch(std::array<std::tuple<int, int>, 4> const& visors, bool combat_visor) {
+  // Handle beam menu selection:
+  if (requested_visor >= 0 && requested_visor < 4)
+  {
+    last_requested_visor = requested_visor;
+    requested_visor = -1;
+    return visors[last_requested_visor];
+  }
+
+
   static bool pressing_button = false;
   if (CheckVisorCtl(0)) {
     if (!combat_visor) {
@@ -166,14 +182,14 @@ std::tuple<int, int> get_visor_switch(std::array<std::tuple<int, int>, 4> const&
 }
 
 int get_beam_switch(std::array<int, 4> const& beams) {
-  // Added by LTSchmiddy: For beam menu selection...
+  // Handle beam menu selection:
   if (requested_beam >= 0 && requested_beam < 4)
   {
     current_beam = beams[requested_beam];
     requested_beam = -1;
     return current_beam;
   }
-  // End of addition.
+
 
   static bool pressing_button = false;
   if (CheckBeamCtl(0)) {

@@ -159,66 +159,23 @@ bool FpsControls::beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, 
     write32(0, yaw_vel_address);
 
     // Set the beam/visor menu state.
-    menu_cursor_state = CheckBeamMenuCtl() ? Beam_Visor_Menu_State::BEAM_MENU_OPEN : Beam_Visor_Menu_State::VISOR_MENU_OPEN;
+    menu_cursor_state = CheckBeamMenuCtl() ? Beam_Visor_Menu_State::SET_BEAM : Beam_Visor_Menu_State::SET_VISOR;
+    return true;
   }
 
-  if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM || menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR)
+  else if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM || menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR)
   {
-    if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM && (game == Game::PRIME_1 || game == Game::PRIME_2)) {
-      determine_selected_beam_menu(game);
-    }
+    determine_selected_beam_visor(game, menu_cursor_state);
+
     set_cursor_pos(0, 0);
     write32(0, cursor_base + 0x9c);
     write32(0, cursor_base + 0x15c);
-  }
-
-  if (menu_cursor_state != Beam_Visor_Menu_State::IDLE)
-  {
-    menu_cursor_state = beam_visor_menu_next_state(menu_cursor_state);
-    write32(0, yaw_vel_address);
-    return true;
+    menu_cursor_state = Beam_Visor_Menu_State::IDLE;
   }
 
   return false;
 }
 
-FpsControls::Beam_Visor_Menu_State FpsControls::beam_visor_menu_next_state(Beam_Visor_Menu_State menu_state)
-{
-  switch (menu_state)
-  {
-  case (Beam_Visor_Menu_State::BEAM_MENU_OPEN):
-    return Beam_Visor_Menu_State::SET_BEAM_IN_3;
-
-  case (Beam_Visor_Menu_State::SET_BEAM_IN_3):
-    return Beam_Visor_Menu_State::SET_BEAM_IN_2;
-
-  case (Beam_Visor_Menu_State::SET_BEAM_IN_2):
-    return Beam_Visor_Menu_State::SET_BEAM_IN_1;
-
-  case (Beam_Visor_Menu_State::SET_BEAM_IN_1):
-    return Beam_Visor_Menu_State::SET_BEAM;
-
-  case (Beam_Visor_Menu_State::SET_BEAM):
-    return Beam_Visor_Menu_State::IDLE;
-
-
-  case (Beam_Visor_Menu_State::VISOR_MENU_OPEN):
-    return Beam_Visor_Menu_State::SET_VISOR_IN_3;
-
-  case (Beam_Visor_Menu_State::SET_VISOR_IN_3):
-    return Beam_Visor_Menu_State::SET_VISOR_IN_2;
-
-  case (Beam_Visor_Menu_State::SET_VISOR_IN_2):
-    return Beam_Visor_Menu_State::SET_VISOR_IN_1;
-
-  case (Beam_Visor_Menu_State::SET_VISOR_IN_1):
-    return Beam_Visor_Menu_State::SET_VISOR;
-
-  case (Beam_Visor_Menu_State::SET_VISOR):
-    return Beam_Visor_Menu_State::IDLE;
-  }
-  return Beam_Visor_Menu_State::IDLE;
-}
 
 /*
 Since Prime 1 & 2 have part of their usual beam selection code overridden
@@ -228,8 +185,14 @@ no longer actually equips the selected beam. I've reimplemented that here.
 The numbers used in the equations below were the values (in memory) for the cursor position
 at the boundries between panels, using a 16:9 aspect ratio.
 */
-void FpsControls::determine_selected_beam_menu(Game game)
+void FpsControls::determine_selected_beam_visor(Game game, Beam_Visor_Menu_State beam_visor)
 {
+  if (beam_visor == Beam_Visor_Menu_State::IDLE) {
+    return;
+  }
+
+  bool beam = beam_visor == Beam_Visor_Menu_State::SET_BEAM;
+
   float x = get_cursor_x();
   float y = get_cursor_y();
 
@@ -237,19 +200,31 @@ void FpsControls::determine_selected_beam_menu(Game game)
   //The center is the area inside an oval: 1 > (x/major-axis)^2 + (y/minor-axis)^2
   if (1 > pow((x / 0.136), 2) + pow((y / 0.2), 2)) {
     // Select beam 1;
-    request_beam_change(0);
+    if (beam) {
+      request_beam_change(0);
+    }
+    else {
+      request_visor_change(0);
+    }
+    
+
   }
 
   // The upper section is a V shape (minus the center oval): y < m * abs(x) + b
   else if (y < -(0.78667 / 0.95) * abs(x))
   {
-    if (game == Game::PRIME_1)
-    {
-      request_beam_change(1);
+    if (beam) {
+      if (game == Game::PRIME_1)
+      {
+        request_beam_change(1);
+      }
+      if (game == Game::PRIME_2)
+      {
+        request_beam_change(3);
+      }
     }
-    if (game == Game::PRIME_2)
-    {
-      request_beam_change(3);
+    else {
+      request_visor_change(1);
     }
   }
 
@@ -257,26 +232,46 @@ void FpsControls::determine_selected_beam_menu(Game game)
   // by simply checking if x is positive or negative.
   // Cursor on left side:
   else if (x < 0) {
-    if (game == Game::PRIME_1)
-    {
-      request_beam_change(2);
-    }
-    if (game == Game::PRIME_2)
-    {
-      request_beam_change(1);
+    if (beam) {
+      if (game == Game::PRIME_1)
+      {
+        request_beam_change(2);
+      }
+      if (game == Game::PRIME_2)
+      {
+        request_beam_change(1);
+      }
+    } else {
+      if (game == Game::PRIME_1 || game == Game::PRIME_2)
+      {
+        request_visor_change(2);
+      }
+      else {
+        request_visor_change(3);
+      }
     }
   }
 
   // Cursor on right side:
   else
   {
-    if (game == Game::PRIME_1)
-    {
-      request_beam_change(3);
-    }
-    if (game == Game::PRIME_2)
-    {
-      request_beam_change(2);
+    if (beam) {
+      if (game == Game::PRIME_1)
+      {
+        request_beam_change(3);
+      }
+      if (game == Game::PRIME_2)
+      {
+        request_beam_change(2);
+      }
+    } else {
+      if (game == Game::PRIME_1 || game == Game::PRIME_2)
+      {
+        request_visor_change(3);
+      }
+      else {
+        request_visor_change(2);
+      }
     }
   }
 }
@@ -286,6 +281,10 @@ void FpsControls::run_mod_mp1() {
   if (mp1_static.cursor_ptr_address != 0) {
     u32 cursor_base = read32(read32(mp1_static.cursor_ptr_address) + mp1_static.cursor_offset);
 
+    // enum is { InGame, MapScreen, PauseGame, LogBook, SaveGame, MessageScreen };
+    if (read32(mp1_static.state_manager_address + 0x117c) != 0) {
+      return;
+    }
     if (beam_visor_menu_handler(cursor_base, mp1_static.yaw_vel_address, Game::PRIME_1))
     {
       return;
@@ -355,6 +354,10 @@ void FpsControls::run_mod_mp2(Region region) {
   if (read32(mp2_static.load_state_address) != 1) {
     return;
   }
+  // game state, scan pause.
+  if (read32(mp2_static.state_manager_address + 0x2c0c) != 0 || read32(mp2_static.state_manager_address + 0x1e88) == 1) {
+    return;
+  }
 
   // Handle Beam/Visor Menu:
   if (mp2_static.cursor_ptr_address != 0)
@@ -421,12 +424,17 @@ bool FpsControls::mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address)
   if (CheckVisorMenuCtl())
   {
     // Set the beam/visor menu state.
-    menu_cursor_state = Beam_Visor_Menu_State::VISOR_MENU_OPEN;
+    menu_cursor_state = Beam_Visor_Menu_State::SET_VISOR;
+    return true;
   }
 
-  if (menu_cursor_state != Beam_Visor_Menu_State::IDLE)
+  if (menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR)
   {
-    menu_cursor_state = beam_visor_menu_next_state(menu_cursor_state);
+    menu_cursor_state = Beam_Visor_Menu_State::IDLE;
+    if (!read8(mp3_static.cursor_dlg_enabled_address)) {
+      determine_selected_beam_visor(Game::PRIME_3, Beam_Visor_Menu_State::SET_VISOR);
+    }
+
     write32(0, yaw_vel_address);
     return true;
   }
@@ -451,7 +459,10 @@ void FpsControls::run_mod_mp3() {
   powerups_ptr_address = cplayer_address + 0x35a8;
   handle_beam_visor_switch({}, prime_three_visors);
     
-  
+
+  //u32 state_man_addr = read32(mp3_static.state_mgr_ptr_address + 0x28);
+  //Core::DisplayMessage(std::to_string(read32(0x805c8d74)), 15);
+
   // Handle Interactable Entities
   bool lock_camera = false;
 
@@ -1172,6 +1183,7 @@ void FpsControls::init_mod_mp1(Region region) {
     mp1_static.cursor_offset = 0xc54;
 
     mp1_static.cplayer_address = 0x804d3c20;
+    mp1_static.state_manager_address = 0x804bf420;
 
     powerups_ptr_address = 0x804bfcd4;
   }
@@ -1282,6 +1294,8 @@ void FpsControls::init_mod_mp2(Region region) {
     mp2_static.cursor_ptr_address = 0x804ff404;
     mp2_static.cursor_offset = 0xc54;
 
+    mp2_static.state_manager_address = 0x804e72e8;
+
   }
   else if (region == Region::PAL) {
     code_changes.emplace_back(0x8008e30C, 0xc0430184);
@@ -1345,6 +1359,8 @@ void FpsControls::init_mod_mp3(Region region) {
     mp3_static.lockon_address = 0x805c6db7;
     mp3_static.gun_lag_toc_offset = 0x5ff0;
     mp3_static.motion_vtf_address = 0x802e0dac;
+
+    //mp3_static.state_mgr_ptr_address = 0x805c6c40;
   }
   else if (region == Region::PAL) {
     code_changes.emplace_back(0x80080ab8, 0xec010072);
