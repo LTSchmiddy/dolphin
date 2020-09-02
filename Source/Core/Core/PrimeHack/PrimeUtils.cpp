@@ -2,6 +2,8 @@
 #include <Common/Timer.h>
 #include <cstdarg>
 
+#include "Core/Core.h"
+
 std::string info_str;
 
 namespace prime
@@ -194,6 +196,55 @@ int get_beam_switch(std::array<int, 4> const& beams) {
     pressing_button = false;
   }
   return -1;
+}
+
+
+std::string as_hex_string(u32 val)
+{
+  char retVal[20];
+  sprintf(retVal, "%x", val);
+  return std::string(retVal);
+}
+
+// Sometimes, printing to dolphin's own logging system to be a bit more useful than spamming the on-screen popups... Sometimes:
+void print_to_log(const char* message, const char* file, int line, Common::Log::LOG_LEVELS level, Common::Log::LOG_TYPE type)
+{
+  Common::Log::LogManager* log_ptr = Common::Log::LogManager::GetInstance();
+  if (log_ptr == NULL)
+  {
+    Core::DisplayMessage("Log Manager is NULL!!!", 1000);
+    return;
+  }
+
+  log_ptr->Log(level, type, file, line, message, {});
+}
+
+void print_to_log(const char* message, const char* file, int line)
+{
+  print_to_log(message, file, line, Common::Log::LINFO, Common::Log::PRIMEHACK);
+}
+
+void print_to_log(const char* message)
+{
+  print_to_log(message, "<unnamed>", 0);
+}
+
+
+
+void print_to_log(std::string message, const char* file, int line, Common::Log::LOG_LEVELS level, Common::Log::LOG_TYPE type)
+{
+  print_to_log(message.c_str(), file, line, level, type);
+}
+
+void print_to_log(std::string message, const char* file, int line)
+{
+  print_to_log(message.c_str(), file, line);
+}
+
+
+void print_to_log(std::string message)
+{
+  print_to_log(message.c_str());
 }
 
 std::stringstream ss;
