@@ -13,15 +13,8 @@
 #include "VideoCommon/VideoCommon.h"
 
 
-extern std::string info_str;
 
 namespace prime {
-struct active_cam_info
-{
-  u32 address;
-  u32 offset;
-  // u32 ptr;
-};
 
 u8 read8(u32 addr);
 u16 read16(u32 addr);
