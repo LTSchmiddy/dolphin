@@ -10,7 +10,10 @@ public:
 
 private:
   void springball_code(u32 start_point);
+  void boostball_code(u32 start_point);
+
   void springball_check(u32 ball_address, u32 movement_address);
+  void boostball_check(u32 ball_address, u32 movement_address);
 
   u32 cplayer_address;
 };

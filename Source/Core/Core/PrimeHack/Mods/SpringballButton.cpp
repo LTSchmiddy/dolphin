@@ -9,6 +9,8 @@ void SpringballButton::run_mod(Game game, Region region) {
   switch (game) {
   case Game::PRIME_1:
     springball_check(cplayer_address + 0x2f4, cplayer_address + 0x25c);
+    boostball_check(cplayer_address + 0x2f4, cplayer_address + 0x25c);
+
     DevInfo("CPlayer", "%08X", cplayer_address);
     break;
   case Game::PRIME_2:
@@ -32,6 +34,8 @@ void SpringballButton::init_mod(Game game, Region region) {
     if (region == Region::NTSC) {
       cplayer_address = 0x804d3c20;
       springball_code(0x801476d0);
+
+      boostball_code(0x801401c4);
     }
     else if (region == Region::PAL) {
       cplayer_address = 0x804d7b60;
@@ -73,8 +77,18 @@ void SpringballButton::springball_code(u32 start_point) {
   code_changes.emplace_back(start_point + 0x14, 0x2C030000);  // cmpwi r3, 0
 }
 
+void SpringballButton::boostball_code(u32 start_point) {
+  code_changes.emplace_back(start_point + 0x00, 0x3c608000);  // lis r3, 0x8000
+  code_changes.emplace_back(start_point + 0x04, 0x60634165);  // ori r3, r3, 0x4165
+  code_changes.emplace_back(start_point + 0x08, 0x88630000);  // lbz r3, 0(r3)
+
+}
+
+
+
 void SpringballButton::springball_check(u32 ball_address, u32 movement_address) {
-  if (CheckSpringBallCtl())
+  //if (CheckSpringBallCtl())
+  if (CheckJump())
   {             
     u32 ball_state = read32(ball_address);
     u32 movement_state = read32(movement_address);
@@ -82,6 +96,21 @@ void SpringballButton::springball_check(u32 ball_address, u32 movement_address) 
     if ((ball_state == 1 || ball_state == 2) && movement_state == 0)
       write8(1, 0x80004164);
   }
+}
+
+void SpringballButton::boostball_check(u32 ball_address, u32 movement_address) {
+  if (CheckSpringBallCtl())
+  {             
+    u32 ball_state = read32(ball_address);
+    u32 movement_state = read32(movement_address);
+
+    if ((ball_state == 1 || ball_state == 2) && movement_state == 0)
+      write8(1, 0x80004165);
+  } else {
+    write8(0, 0x80004165);
+  }
+
+
 }
 
 }
