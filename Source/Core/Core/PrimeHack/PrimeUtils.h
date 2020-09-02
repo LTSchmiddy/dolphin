@@ -12,6 +12,8 @@
 #include "VideoCommon/RenderBase.h"
 #include "VideoCommon/VideoCommon.h"
 
+#include "Common/Logging/LogManager.h"
+
 extern std::string info_str;
 
 namespace prime {
@@ -53,11 +55,22 @@ void set_visor_owned(int index, bool owned);
 void set_cursor_pos(float x, float y);
 
 
+
 u32 get_player_address(Game game, Region region);
 u32 get_player_address();
 
 active_cam_info get_active_cam(Game game, Region region);
 active_cam_info get_active_cam();
+
+std::string as_hex_string(u32 val);
+void print_to_log(const char* message, const char* file, int line, Common::Log::LOG_LEVELS level, Common::Log::LOG_TYPE type);
+void print_to_log(const char* message, const char* file, int line);
+void print_to_log(const char* message);
+
+void print_to_log(std::string message, const char* file, int line, Common::Log::LOG_LEVELS level, Common::Log::LOG_TYPE type);
+void print_to_log(std::string message, const char* file, int line);
+void print_to_log(std::string message);
+
 
 
 void DevInfo(const char* name, const char* format, ...);
