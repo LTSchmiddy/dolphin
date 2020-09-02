@@ -7,7 +7,7 @@
 #include <cstdarg>
 
 
-
+extern std::string info_str;
 
 namespace prime
 {

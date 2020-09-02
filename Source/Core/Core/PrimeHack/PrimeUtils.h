@@ -12,7 +12,7 @@
 #include "VideoCommon/RenderBase.h"
 #include "VideoCommon/VideoCommon.h"
 
-
+extern std::string info_str;
 
 namespace prime {
 
