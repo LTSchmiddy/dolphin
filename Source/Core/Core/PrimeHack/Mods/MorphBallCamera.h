@@ -14,6 +14,7 @@ public:
 
 private:
   float calculate_yaw_vel();
+  void handle_camera_rotation_mp1(u32 camera_address, u32 player_addr, u16 transform_offset);
   void handle_camera_rotation(u32 camera_address, u32 player_addr, u16 transform_offset);
   void run_mod_mp1(Region region);
   void run_mod_mp2(Region region);

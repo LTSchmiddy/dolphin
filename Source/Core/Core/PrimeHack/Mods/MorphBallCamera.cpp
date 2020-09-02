@@ -103,6 +103,29 @@ namespace prime
 
   
 
+  void MorphBallCamera::handle_camera_rotation_mp1(u32 camera_address, u32 player_addr, u16 transform_offset)
+  //void handle_camera_rotation(u32 player_tf_addr, u32 camera_tf_addr)
+  {
+    float start_x = player_tf.m[0][3] - camera_tf.m[0][3];
+    float start_y = player_tf.m[1][3] - camera_tf.m[1][3];
+
+
+    ang_vector_2d cam_pos_vector(start_x, start_y);
+
+    cam_pos_vector.set_rot(cam_pos_vector.rot + (calculate_yaw_vel() / 5000.0f));
+    //cam_pos_vector.set_rot(cam_pos_vector.rot + 0.1f);
+
+    //camera_tf.build_rotation_loc_safe(cam_pos_vector.rot - PI / 2.0f, 0, 0);
+    //print_to_log("Camera Dist: " + std::to_string(cam_pos_vector.dist));
+    camera_tf.m[0][3] = cam_pos_vector.x() + player_tf.m[0][3];
+    camera_tf.m[1][3] = cam_pos_vector.y() + player_tf.m[1][3];
+
+    camera_tf.write_to(camera_address + transform_offset);
+
+
+
+  }
+  
   void MorphBallCamera::handle_camera_rotation(u32 camera_address, u32 player_addr, u16 transform_offset)
   //void handle_camera_rotation(u32 player_tf_addr, u32 camera_tf_addr)
   {
@@ -128,6 +151,8 @@ namespace prime
     //const u32 camera_offset = (((read32(mp1_static.camera_uid_address)) >> 16) & 0x3ff) << 3;
     //const u32 camera_address = read32(camera_ptr + camera_offset + 4);
 
+
+
     active_cam_info acm = get_active_cam();
 
     if (acm.offset == 32)
@@ -136,6 +161,11 @@ namespace prime
       {
         print_to_log("BALL CAM - New Address: " + as_hex_string(acm.address));
         last_camera_address = acm.address;
+      }
+
+      u32 cam_state_addr = 0x809d42d0;
+      if (read32(cam_state_addr) != 0 && read32(cam_state_addr) != 5) {
+        return;
       }
 
       writef32(100.0f, acm.address + 0x1b0);
@@ -148,21 +178,18 @@ namespace prime
 
       if (abs(calculate_yaw_vel()) > 0.0f)
       {
-        handle_camera_rotation(acm.address, mp1_static.cplayer_address, 0x2c);
+        handle_camera_rotation_mp1(acm.address, mp1_static.cplayer_address, 0x2c);
+        //write32(5, cam_state_addr);
       }
+      //else {
+        //write32(0, cam_state_addr);
+      //}
 
-       vec3 prev_ball_pos(acm.address + 0x2d8);
-
-       prev_ball_pos.x = player_tf.m[0][3];
-       prev_ball_pos.y = player_tf.m[1][3];
-       prev_ball_pos.z = player_tf.m[2][3];
-
-       prev_ball_pos.write_to(acm.address + 0x2d8);
 
        //vec3 spline_vector = camera_tf.loc();
        //spline_vector.write_to(acm.address + 0x33c);
        //camera_tf.loc().write_to(acm.address + 0x33c);
-       camera_tf.loc().write_to(acm.address + 0x330);
+       //camera_tf.loc().write_to(acm.address + 0x330);
 
     }
 
@@ -255,11 +282,11 @@ namespace prime
 
         // Disables updates to ballcam.ballDelta and ballcam.ballDeltaFlat.
         // If the camera doesn't realize that the ball is moving, it may not try to update on it's own.
-        code_changes.emplace_back(0x8004767c, 0x60000000);
-        code_changes.emplace_back(0x80047680, 0x60000000);
-        code_changes.emplace_back(0x80047684, 0x60000000);
-        code_changes.emplace_back(0x80047688, 0x60000000);
-        code_changes.emplace_back(0x8004768c, 0x60000000);
+        //code_changes.emplace_back(0x8004767c, 0x60000000);
+        //code_changes.emplace_back(0x80047680, 0x60000000);
+        //code_changes.emplace_back(0x80047684, 0x60000000);
+        //code_changes.emplace_back(0x80047688, 0x60000000);
+        //code_changes.emplace_back(0x8004768c, 0x60000000);
 
 
         mp1_static.control_flag_address = 0x8052e9b8;
@@ -376,5 +403,5 @@ namespace prime
     }
 
 
-    //camera_tf.build_intrinsic_rotation(cam_rot, height_angle, 0);
+    //camera_tf.build_rotation_loc_safe(cam_rot, height_angle, 0);
     camera_tf.build_rotation(cam_rot, height_angle, 0);*/
