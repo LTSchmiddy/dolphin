@@ -211,6 +211,196 @@ int get_beam_switch(std::array<int, 4> const& beams) {
 }
 
 
+
+// Added by LT_Schmiddy: PrimeHack regularly needs to find the address of the player and camera, but the implementation is typed out over and over.
+// So, here's my attempt for a DRY alternative:
+
+u32 get_player_address(Game game, Region region)
+{
+  u32 cplayer_ptr_address;
+  u32 state_mgr_ptr_address;
+  switch (game)
+  {
+  case Game::PRIME_1:
+    if (region == Region::NTSC)
+    {
+      return 0x804d3c20;
+    }
+    else if (region == Region::PAL)
+    {
+      return 0x804d7b60;
+
+    }
+    break;
+  case Game::PRIME_1_GCN:
+    if (region == Region::NTSC)
+    {
+      return 0x8046b97c;
+    }
+    else if (region == Region::PAL)
+    {
+      return 0x803f38a4;
+
+    }
+
+    break;
+  case Game::PRIME_2:
+
+    cplayer_ptr_address = 0;
+    if (region == Region::NTSC)
+    {
+      cplayer_ptr_address = 0x804e87dc;
+    }
+    else if (region == Region::PAL)
+    {
+      cplayer_ptr_address = 0x804efc2c;
+    }
+
+    return read32(cplayer_ptr_address);
+    //break;
+  case Game::PRIME_3:
+    state_mgr_ptr_address = 0;
+    if (region == Region::NTSC)
+    {
+      state_mgr_ptr_address = 0x805c6c40;
+    }
+    else if (region == Region::PAL)
+    {
+      //state_mgr_ptr_address = 0;
+      return 0;
+    }
+
+    return read32(read32(state_mgr_ptr_address + 0x28) + 0x2184);
+    //break;
+  default:
+    return 0;
+    //break;
+  }
+  return 0;
+}
+
+u32 get_player_address()
+{
+  HackManager* hm = GetHackManager();
+  return get_player_address(hm->get_active_game(), hm->get_active_region());
+
+}
+
+// Same for cameras:
+active_cam_info get_active_cam(Game game, Region region)
+{
+  if (game == Game::PRIME_1)
+  {
+    u32 object_list_ptr_address = 0;
+    u32 camera_uid_address = 0;
+
+    if (region == Region::NTSC)
+    {
+      object_list_ptr_address = 0x804bfc30;
+      camera_uid_address = 0x804c4a08;
+    }
+    else if (region == Region::PAL)
+    {
+      object_list_ptr_address = 0x804c3b70;
+      camera_uid_address = 0x804c8948;
+    }
+
+    const u32 camera_ptr = read32(object_list_ptr_address);
+    const u32 camera_offset = (((read32(camera_uid_address) + 10) >> 16) & 0x3ff) << 3;
+    return { read32(camera_ptr + camera_offset + 4), camera_offset };  // camera_ptr,
+    // break;
+  }
+  else if (game == Game::PRIME_1_GCN)
+  {
+    u32 camera_uid_address = 0;
+    u32 state_mgr_address = 0;
+
+    if (region == Region::NTSC)
+    {
+      state_mgr_address = 0x8045a1a8;
+      camera_uid_address = 0x8045c5b4;
+    }
+    else if (region == Region::PAL)
+    {
+      state_mgr_address = 0x803e2088;
+      camera_uid_address = 0x803e44dc;
+    }
+
+    const u16 camera_uid = read16(camera_uid_address);
+    if (camera_uid == -1)
+    {
+      return { 0, 0 };
+    }
+    u32 camera_offset = (camera_uid & 0x3ff) << 3;
+    return { read32(read32(state_mgr_address + 0x810) + 4 + camera_offset), camera_offset };
+  }
+  else if (game == Game::PRIME_2)
+  {
+    u32 object_list_ptr_address = 0;
+    u32 camera_uid_address = 0;
+
+    if (region == Region::NTSC)
+    {
+      object_list_ptr_address = 0x804e7af8;
+      camera_uid_address = 0x804eb9b0;
+    }
+    else if (region == Region::PAL)
+    {
+      object_list_ptr_address = 0x804eef48;
+      camera_uid_address = 0x804f2f50;
+    }
+
+    u32 object_list_address = read32(object_list_ptr_address);
+    if (!mem_check(object_list_address))
+    {
+      return { 0, 0 };
+    }
+    const u16 camera_uid = read16(camera_uid_address);
+    if (camera_uid == -1)
+    {
+      return { 0, 0 };
+    }
+    const u32 camera_offset = (camera_uid & 0x3ff) << 3;
+    return { read32(object_list_address + 4 + camera_offset), camera_offset };
+  }
+  else if (game == Game::PRIME_3)
+  {
+    u32 state_mgr_ptr_address = 0;
+    u32 cam_uid_ptr_address = 0;
+    if (region == Region::NTSC)
+    {
+      state_mgr_ptr_address = 0x805c6c40;
+      cam_uid_ptr_address = 0x805c6c78;
+    }
+    else if (region == Region::PAL)
+    {
+    }
+
+    u32 object_list_address = read32(read32(state_mgr_ptr_address + 0x28) + 0x1010);
+    if (!mem_check(object_list_address))
+    {
+      return { 0, 0 };
+    }
+    const u16 camera_id = read16(read32(read32(cam_uid_ptr_address) + 0xc) + 0x16);
+    if (camera_id == 0xffff)
+    {
+      return { 0, 0 };
+    }
+    return { read32(object_list_address + 4 + (8 * camera_id)), camera_id };
+  }
+
+  return { 0, 0 };
+
+}
+
+active_cam_info get_active_cam()
+{
+  HackManager* hm = GetHackManager();
+  return get_active_cam(hm->get_active_game(), hm->get_active_region());
+}
+
+
+
 std::stringstream ss;
 void DevInfo(const char* name, const char* format, ...)
 {
