@@ -67,18 +67,13 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   hack_mgr.enable_mod("skip_cutscene");
 }
 
-
-// Added by LT_Schmiddy. For Beam Menu Mouse Cursor:
-bool CheckBeamMenuCtl()
-{
+bool CheckBeamMenuCtl() { 
   return Wiimote::CheckBeamMenu();
 }
 
-bool CheckVisorMenuCtl()
-{
+bool CheckVisorMenuCtl() {
   return Wiimote::CheckVisorMenu();
 }
-// End of addition
 
 bool CheckBeamCtl(int beam_num) {
   return Wiimote::CheckBeam(beam_num);
@@ -181,7 +176,7 @@ void UpdateHackSettings() {
   double camera, cursor, fov;
   bool invertx, inverty;
 
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN)
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN)
     std::tie<double, double, double, bool, bool>(camera, cursor, fov, invertx, inverty) =
       Pad::PrimeSettings();
   else
@@ -236,7 +231,7 @@ void SetInvertedX(bool inverted) {
 }
 
 double GetHorizontalAxis() {
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN) {
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN) {
     if (Pad::PrimeUseController()) {
       return std::get<0>(Pad::GetPrimeStickXY());
     } 
@@ -249,7 +244,7 @@ double GetHorizontalAxis() {
 }
 
 double GetVerticalAxis() {
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN) {
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN) {
     if (Pad::PrimeUseController()) {
       return std::get<1>(Pad::GetPrimeStickXY());
     } 
