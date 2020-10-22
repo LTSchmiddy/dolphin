@@ -1,6 +1,10 @@
 #include "Core/PrimeHack/Mods/FpsControls.h"
 
 #include "Core/PrimeHack/PrimeUtils.h"
+#include "Core/PrimeHack/HackConfig.h"
+#include "Core/Core.h"
+#include "Common/BitUtils.h"
+
 
 namespace prime {
   namespace {  
@@ -77,6 +81,11 @@ namespace prime {
 
   void FpsControls::handle_beam_visor_switch(std::array<int, 4> const &beams,
     std::array<std::tuple<int, int>, 4> const &visors) {
+    // if the beam_change flag is still set from last time, then the game isn't currently able to 
+    // change the beam. Let's set it back to 0. Otherwise, the beam will spontaneously change later.
+    // For example, zooming in on the map screen would cause a weapon change once you exited the menu.
+    write32(0, beamchange_flag_address);
+
     // Global array of all powerups (measured in "ammunition"
     // even for things like visors/beams)
     u32 powerups_array_base;
@@ -128,7 +137,158 @@ namespace prime {
     }
   }
 
+  // Only used by Prime 1 and 2, since MP3 doesn't have a beam menu.
+  bool FpsControls::beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game)
+  {
+    if (CheckBeamMenuCtl() || CheckVisorMenuCtl())
+    {
+      if (menu_cursor_state == Beam_Visor_Menu_State::IDLE)
+      {
+        set_cursor_pos(0, 0);
+        if (use_original_beam_menu_code) {
+          set_state(ModState::CODE_DISABLED);
+        }
+      }
+      handle_cursor(cursor_base + 0x9c, cursor_base + 0x15c, 0.95f, 0.90f);
+      write32(0, yaw_vel_address);
+
+      // Set the beam/visor menu state.
+      menu_cursor_state = CheckBeamMenuCtl() ? Beam_Visor_Menu_State::SET_BEAM : Beam_Visor_Menu_State::SET_VISOR;
+      return true;
+    }
+    else if (menu_cursor_state == Beam_Visor_Menu_State::SET_BEAM || menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR)
+    {
+      if (use_original_beam_menu_code) {
+        set_state(ModState::ENABLED);
+      }
+      else {
+        determine_selected_beam_visor(game, menu_cursor_state);
+      }
+
+      menu_cursor_state = Beam_Visor_Menu_State::IDLE;
+    }
+    else if (menu_cursor_state == Beam_Visor_Menu_State::IDLE) {
+      // Hold the crosshairs at the center of the screen when the menus aren't open.
+      // Fixes an issue where the crosshair becomes offcenter when loading a save, etc.
+      set_cursor_pos(0, 0);
+      write32(0, cursor_base + 0x9c);
+      write32(0, cursor_base + 0x15c);
+    }
+    return false;
+  }
+
+  /*
+  Since Prime 1 & 2 have part of their usual beam selection code overridden
+  (in order to make the beam selection buttons work), the in-game beam selection menu
+  no longer actually equips the selected beam. I've reimplemented that here.
+  The numbers used in the equations below are the values (in memory) for the cursor position
+  at the boundries between panels, using a 16:9 aspect ratio. Should work at other aspects as well.
+  */
+  void FpsControls::determine_selected_beam_visor(Game game, Beam_Visor_Menu_State beam_visor)
+  {
+    if (beam_visor == Beam_Visor_Menu_State::IDLE) {
+      return;
+    }
+
+    bool beam = beam_visor == Beam_Visor_Menu_State::SET_BEAM;
+
+    float x = get_cursor_x();
+    float y = get_cursor_y();
+
+    //The center is the area inside an oval: 1 > (x/major-axis)^2 + (y/minor-axis)^2
+    if (1 > pow((x / 0.136), 2) + pow((y / 0.2), 2)) {
+      // Select beam 1;
+      if (beam) {
+        request_beam_change(0);
+      }
+      else {
+        request_visor_change(0);
+      }
+    }
+
+    // The upper section is a V shape (minus the center oval): y < m * abs(x) + b
+    else if (y < -(0.78667 / 0.95) * abs(x))
+    {
+      if (beam) {
+        if (game == Game::PRIME_1)
+        {
+          request_beam_change(1);
+        }
+        if (game == Game::PRIME_2)
+        {
+          request_beam_change(3);
+        }
+      }
+      else {
+        request_visor_change(1);
+      }
+    }
+
+    // If those two checks fail, we can determine between the final two panels in the menu
+    // by simply checking if x is positive or negative.
+    // Cursor is on left side:
+    else if (x < 0) {
+      if (beam) {
+        if (game == Game::PRIME_1)
+        {
+          request_beam_change(2);
+        }
+        if (game == Game::PRIME_2)
+        {
+          request_beam_change(1);
+        }
+      }
+      else {
+        if (game == Game::PRIME_1 || game == Game::PRIME_2)
+        {
+          request_visor_change(2);
+        }
+        else {
+          request_visor_change(3);
+        }
+      }
+    }
+
+    // Cursor is on right side:
+    else
+    {
+      if (beam) {
+        if (game == Game::PRIME_1)
+        {
+          request_beam_change(3);
+        }
+        if (game == Game::PRIME_2)
+        {
+          request_beam_change(2);
+        }
+      }
+      else {
+        if (game == Game::PRIME_1 || game == Game::PRIME_2)
+        {
+          request_visor_change(3);
+        }
+        else {
+          request_visor_change(2);
+        }
+      }
+    }
+  }
+
   void FpsControls::run_mod_mp1() {
+    // Handle Beam/Visor Menu:
+    if (mp1_static.cursor_ptr_address != 0) {
+      u32 cursor_base = read32(read32(mp1_static.cursor_ptr_address) + mp1_static.cursor_offset);
+
+      // enum is { InGame, MapScreen, PauseGame, LogBook, SaveGame, MessageScreen };
+      if (read32(mp1_static.state_manager_address + 0x117c) != 0) {
+        return;
+      }
+      if (beam_visor_menu_handler(cursor_base, mp1_static.yaw_vel_address, Game::PRIME_1))
+      {
+        return;
+      }
+    }
+    
     handle_beam_visor_switch(prime_one_beams, prime_one_visors);
 
     // Allows freelook in grapple, otherwise we are orbiting (locked on) to something
@@ -190,6 +350,19 @@ namespace prime {
 
     if (read32(mp2_static.load_state_address) != 1) {
       return;
+    }
+
+    // game state, scan pause.
+    if (read32(mp2_static.state_manager_address + 0x2c0c) != 0 || read32(mp2_static.state_manager_address + 0x1e88) == 1) {
+      return;
+    }
+
+    // Handle Beam/Visor Menu:
+    if (mp2_static.cursor_ptr_address != 0) {
+      u32 cursor_base = read32(read32(mp2_static.cursor_ptr_address) + mp2_static.cursor_offset);
+      if (beam_visor_menu_handler(cursor_base, cplayer_address + 0x178, Game::PRIME_2)) {
+        return;
+      }
     }
 
     // HACK ooo
@@ -292,7 +465,32 @@ namespace prime {
     }
   }
 
-  // this game is
+
+  bool FpsControls::mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address)
+  {
+    if (CheckVisorMenuCtl())
+    {
+      // Set the beam/visor menu state.
+      menu_cursor_state = Beam_Visor_Menu_State::SET_VISOR;
+      mp3_handle_cursor(false);
+      return true;
+    }
+
+    if (menu_cursor_state == Beam_Visor_Menu_State::SET_VISOR) {
+      menu_cursor_state = Beam_Visor_Menu_State::IDLE;
+      // Don't bother if we're in a menu:
+      if (!read8(mp3_static.cursor_dlg_enabled_address)) {
+        determine_selected_beam_visor(Game::PRIME_3, Beam_Visor_Menu_State::SET_VISOR);
+        set_cursor_pos(0, 0);
+        mp3_handle_cursor(true);
+      }
+      write32(0, yaw_vel_address);
+      return true;
+    }
+
+    return false;
+  }
+
   void FpsControls::run_mod_mp3() {
     u32 cplayer_address = read32(read32(read32(mp3_static.cplayer_ptr_address) + 0x04) + 0x2184);
 
@@ -374,6 +572,13 @@ namespace prime {
     if (lock_camera)
       return;
 
+    // Handle Visor Menu:
+    u32 cursor_base = read32(read32(mp3_static.cursor_ptr_address) + mp3_static.cursor_offset);
+
+    if (mp3_visor_menu_handler(cursor_base, cplayer_address + 0x174)) {
+      return;
+    }
+
     u32 boss_name_str = read32(read32(read32(read32(mp3_static.boss_info_address) + 0x6e0) + 0x24) + 0x150);
     bool is_boss_metaridley = is_string_ridley(boss_name_str);
 
@@ -432,6 +637,7 @@ namespace prime {
       init_mod_mp3(region);
       break;
     }
+
     initialized = true;
   }
 
@@ -986,12 +1192,7 @@ namespace prime {
       code_changes.emplace_back(0x80183a8c, 0x60000000);
       code_changes.emplace_back(0x80183a64, 0x60000000);
       code_changes.emplace_back(0x8017661c, 0x60000000);
-      // Cursor location, sets to f17 (always 0 due to little use)
-      code_changes.emplace_back(0x802fb5b4, 0xd23f009c);
-      code_changes.emplace_back(0x8019fbcc, 0x60000000);
 
-      // Disable Beams/Visor Menu, conditional -> unconditional branch
-      code_changes.emplace_back(0x80075cd0, 0x48000044);
       add_beam_change_code_mp1(0x8018e544);
 
       mp1_static.yaw_vel_address = 0x804d3d38;
@@ -1003,6 +1204,10 @@ namespace prime {
       mp1_static.tweak_player_address = 0x804ddff8;
       mp1_static.cplayer_address = 0x804d3c20;
       powerups_ptr_address = 0x804bfcd4;
+
+      mp1_static.cursor_ptr_address = 0x804d3b30;
+      mp1_static.cursor_offset = 0xc54;
+      mp1_static.state_manager_address = 0x804bf420;
     }
     else if (region == Region::PAL) {
       // Same as NTSC but slightly offset
@@ -1088,17 +1293,17 @@ namespace prime {
       code_changes.emplace_back(0x80135b20, 0x60000000);
       code_changes.emplace_back(0x8008bb48, 0x60000000);
       code_changes.emplace_back(0x8008bb18, 0x60000000);
-      code_changes.emplace_back(0x803054a0, 0xd23f009c);
-      code_changes.emplace_back(0x80169dbc, 0x60000000);
       code_changes.emplace_back(0x80143d00, 0x48000050);
 
-      // Remove Beams/Visors Menu
-      code_changes.emplace_back(0x8006fb58, 0x48000044);
       add_beam_change_code_mp2(0x8018cc88);
 
       mp2_static.cplayer_ptr_address = 0x804e87dc;
       mp2_static.load_state_address = 0x804e8824;
       mp2_static.lockon_address = 0x804e894f;
+
+      mp2_static.cursor_ptr_address = 0x804ff404;
+      mp2_static.cursor_offset = 0xc54;
+      mp2_static.state_manager_address = 0x804e72e8;
     }
     else if (region == Region::PAL) {
       code_changes.emplace_back(0x8008e30C, 0xc0430184);
@@ -1175,8 +1380,6 @@ namespace prime {
       code_changes.emplace_back(0x8007fdc8, 0x480000e4);
       code_changes.emplace_back(0x8017f88c, 0x60000000);
 
-      // Remove visors menu
-      code_changes.emplace_back(0x800614ec, 0x48000018);
       add_control_state_hook_mp3(0x80005880, Region::NTSC);
       add_grapple_slide_code_mp3(0x8017f2a0);
 

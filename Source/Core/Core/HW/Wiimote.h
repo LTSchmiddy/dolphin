@@ -99,6 +99,8 @@ ControllerEmu::ControlGroup* GetDrawsomeTabletGroup(int number,
                                                     WiimoteEmu::DrawsomeTabletGroup group);
 ControllerEmu::ControlGroup* GetTaTaConGroup(int number, WiimoteEmu::TaTaConGroup group);
 
+bool CheckVisorMenu();
+bool CheckBeamMenu();
 
 bool CheckVisor(int visor_count);
 bool CheckBeam(int beam_count);

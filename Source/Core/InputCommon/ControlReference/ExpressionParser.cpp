@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <functional>
 
 #include "Common/Common.h"
 #include "Common/StringUtil.h"

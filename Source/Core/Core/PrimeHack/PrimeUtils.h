@@ -42,6 +42,11 @@ void set_beam_owned(int index, bool owned);
 void set_visor_owned(int index, bool owned);
 void set_cursor_pos(float x, float y);
 
+float get_cursor_x();
+float get_cursor_y();
+void request_beam_change(int beam);
+void request_visor_change(int beam);
+
 void DevInfo(const char* name, const char* format, ...);
 void DevInfoMatrix(const char* name, const Transform& t);
 std::tuple<u32, u32, u32> GetCheatsTime();

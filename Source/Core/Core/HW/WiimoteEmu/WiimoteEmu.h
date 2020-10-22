@@ -139,6 +139,9 @@ public:
   void InterruptDataOutput(const u8* data, u32 size) override;
   bool IsButtonPressed() override;
 
+  bool CheckVisorMenuCtrl();
+  bool CheckBeamMenuCtrl();
+
   bool CheckVisorCtrl(int visor_count);
   bool CheckBeamCtrl(int beam_count);
   bool CheckBeamScrollCtrl(bool direction);

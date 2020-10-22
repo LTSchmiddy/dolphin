@@ -197,6 +197,17 @@ void Pause()
   WiimoteReal::Pause();
 }
 
+bool CheckVisorMenu() {
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckVisorMenuCtrl();
+}
+
+bool CheckBeamMenu() {
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckBeamMenuCtrl();
+}
 
 bool CheckVisor(int visorcount)
 {

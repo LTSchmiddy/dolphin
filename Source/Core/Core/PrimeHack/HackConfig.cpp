@@ -67,6 +67,14 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   hack_mgr.enable_mod("skip_cutscene");
 }
 
+bool CheckBeamMenuCtl() {
+  return Wiimote::CheckBeamMenu();
+}
+
+bool CheckVisorMenuCtl() {
+  return Wiimote::CheckVisorMenu();
+}
+
 bool CheckBeamCtl(int beam_num) {
   return Wiimote::CheckBeam(beam_num);
 }

@@ -19,6 +19,12 @@ namespace prime {
     void init_mod(Game game, Region region) override;
 
   private:
+    enum class Beam_Visor_Menu_State {
+      SET_VISOR = -1,
+      SET_BEAM = 1,
+      IDLE = 0,
+    };
+
     // ------------------------------
     // -----Active Mod Functions-----
     // ------------------------------
@@ -27,6 +33,10 @@ namespace prime {
     void handle_beam_visor_switch(std::array<int, 4> const &beams,
       std::array<std::tuple<int, int>, 4> const &visors);
     void mp3_handle_cursor(bool lock);
+
+    bool beam_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address, Game game);
+    bool mp3_visor_menu_handler(u32 cursor_base, u32 yaw_vel_address);
+    void determine_selected_beam_visor(Game game, Beam_Visor_Menu_State beam_visor);
 
     void run_mod_menu(Region region);
     void run_mod_mp1();
@@ -60,6 +70,10 @@ namespace prime {
     u32 powerups_offset;
     u32 new_beam_address;
     u32 beamchange_flag_address;
+
+    bool use_original_beam_menu_code;
+
+    Beam_Visor_Menu_State menu_cursor_state = Beam_Visor_Menu_State::IDLE;
     // Required due to MP3
     bool has_beams;
     bool fighting_ridley;
@@ -76,6 +90,10 @@ namespace prime {
         u32 lockon_address;
         u32 tweak_player_address;
         u32 cplayer_address;
+
+        u32 cursor_ptr_address;
+        u32 cursor_offset;
+        u32 state_manager_address;
       } mp1_static;
 
       struct {
@@ -91,6 +109,10 @@ namespace prime {
         u32 cplayer_ptr_address;
         u32 load_state_address;
         u32 lockon_address;
+
+        u32 cursor_ptr_address;
+        u32 cursor_offset;
+        u32 state_manager_address;
       } mp2_static;
 
       struct {

@@ -665,6 +665,18 @@ bool Wiimote::IsButtonPressed()
   return buttons != 0;
 }
 
+bool Wiimote::CheckVisorMenuCtrl()
+{
+  // Index for '-' button: 4
+  return m_buttons->controls[4].get()->control_ref->State() > 0.5;
+}
+
+bool Wiimote::CheckBeamMenuCtrl()
+{
+  // Index for '+' button: 5
+  return m_buttons->controls[5].get()->control_ref->State() > 0.5;
+}
+
 bool Wiimote::CheckVisorCtrl(int visorcount)
 {
   return m_primehack_visors->controls[visorcount].get()->control_ref->State() > 0.5;
