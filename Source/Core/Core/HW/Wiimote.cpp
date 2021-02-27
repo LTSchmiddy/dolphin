@@ -4,8 +4,6 @@
 
 #include "Core/HW/Wiimote.h"
 
-#include <fmt/format.h>
-
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 
@@ -49,15 +47,44 @@ void SetSource(unsigned int index, WiimoteSource source)
 
   WiimoteReal::HandleWiimoteSourceChange(index);
 
-  // Reconnect to the emulator.
-  Core::RunAsCPUThread([index, previous_source, source] {
-    if (previous_source != WiimoteSource::None)
-      ::Wiimote::Connect(index, false);
-
-    if (source == WiimoteSource::Emulated)
-      ::Wiimote::Connect(index, true);
-  });
+  Core::RunAsCPUThread([index] { UpdateSource(index); });
 }
+
+void UpdateSource(unsigned int index)
+{
+  const auto ios = IOS::HLE::GetIOS();
+  if (!ios)
+    return;
+
+  const auto bluetooth = std::static_pointer_cast<IOS::HLE::Device::BluetoothEmu>(
+      ios->GetDeviceByName("/dev/usb/oh1/57e/305"));
+  if (!bluetooth)
+    return;
+
+  bluetooth->AccessWiimoteByIndex(index)->SetSource(GetHIDWiimoteSource(index));
+}
+
+HIDWiimote* GetHIDWiimoteSource(unsigned int index)
+{
+  HIDWiimote* hid_source = nullptr;
+
+  switch (GetSource(index))
+  {
+  case WiimoteSource::Emulated:
+    hid_source = static_cast<WiimoteEmu::Wiimote*>(::Wiimote::GetConfig()->GetController(index));
+    break;
+
+  case WiimoteSource::Real:
+    hid_source = WiimoteReal::g_wiimotes[index].get();
+    break;
+
+  default:
+    break;
+  }
+
+  return hid_source;
+}
+
 }  // namespace WiimoteCommon
 
 namespace Wiimote
@@ -146,25 +173,6 @@ void Initialize(InitializeMode init_mode)
     Movie::ChangeWiiPads();
 }
 
-void Connect(unsigned int index, bool connect)
-{
-  if (SConfig::GetInstance().m_bt_passthrough_enabled || index >= MAX_BBMOTES)
-    return;
-
-  const auto ios = IOS::HLE::GetIOS();
-  if (!ios)
-    return;
-
-  const auto bluetooth = std::static_pointer_cast<IOS::HLE::Device::BluetoothEmu>(
-      ios->GetDeviceByName("/dev/usb/oh1/57e/305"));
-
-  if (bluetooth)
-    bluetooth->AccessWiimoteByIndex(index)->Activate(connect);
-
-  const char* const message = connect ? "Wii Remote {} connected" : "Wii Remote {} disconnected";
-  Core::DisplayMessage(fmt::format(message, index + 1), 3000);
-}
-
 void ResetAllWiimotes()
 {
   for (int i = WIIMOTE_CHAN_0; i < MAX_BBMOTES; ++i)
@@ -189,61 +197,6 @@ void Pause()
   WiimoteReal::Pause();
 }
 
-// An L2CAP packet is passed from the Core to the Wiimote on the HID CONTROL channel.
-void ControlChannel(int number, u16 channel_id, const void* data, u32 size)
-{
-  if (WiimoteCommon::GetSource(number) == WiimoteSource::Emulated)
-  {
-    static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(number))
-        ->ControlChannel(channel_id, data, size);
-  }
-  else
-  {
-    WiimoteReal::ControlChannel(number, channel_id, data, size);
-  }
-}
-
-// An L2CAP packet is passed from the Core to the Wiimote on the HID INTERRUPT channel.
-void InterruptChannel(int number, u16 channel_id, const void* data, u32 size)
-{
-  if (WiimoteCommon::GetSource(number) == WiimoteSource::Emulated)
-  {
-    static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(number))
-        ->InterruptChannel(channel_id, data, size);
-  }
-  else
-  {
-    WiimoteReal::InterruptChannel(number, channel_id, data, size);
-  }
-}
-
-bool ButtonPressed(int number)
-{
-  const WiimoteSource source = WiimoteCommon::GetSource(number);
-
-  if (s_last_connect_request_counter[number] > 0)
-  {
-    --s_last_connect_request_counter[number];
-    if (source != WiimoteSource::None && NetPlay::IsNetPlayRunning())
-      Wiimote::NetPlay_GetButtonPress(number, false);
-    return false;
-  }
-
-  bool button_pressed = false;
-
-  if (source == WiimoteSource::Emulated)
-    button_pressed =
-        static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(number))->CheckForButtonPress();
-
-  if (source == WiimoteSource::Real)
-    button_pressed = WiimoteReal::CheckForButtonPress(number);
-
-  if (source != WiimoteSource::None && NetPlay::IsNetPlayRunning())
-    button_pressed = Wiimote::NetPlay_GetButtonPress(number, button_pressed);
-
-  return button_pressed;
-}
-
 bool CheckVisor(int visorcount)
 {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
@@ -262,28 +215,28 @@ bool CheckForward() {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
 
   return wiimote->GetNunchukGroup(WiimoteEmu::NunchukGroup::Stick)->
-    controls[0].get()->control_ref->State() > 0.5;
+      controls[0].get()->control_ref->State() > 0.5;
 }
 
 bool CheckBack() {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
 
   return wiimote->GetNunchukGroup(WiimoteEmu::NunchukGroup::Stick)->
-    controls[1].get()->control_ref->State() > 0.5;
+      controls[1].get()->control_ref->State() > 0.5;
 }
 
 bool CheckLeft() {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
 
   return wiimote->GetNunchukGroup(WiimoteEmu::NunchukGroup::Stick)->
-    controls[2].get()->control_ref->State() > 0.5;
+      controls[2].get()->control_ref->State() > 0.5;
 }
 
 bool CheckRight() {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
 
   return wiimote->GetNunchukGroup(WiimoteEmu::NunchukGroup::Stick)->
-    controls[3].get()->control_ref->State() > 0.5;
+      controls[3].get()->control_ref->State() > 0.5;
 }
 
 bool CheckJump() {
@@ -292,11 +245,30 @@ bool CheckJump() {
   return wiimote->groups[0].get()->controls[1]->control_ref->State() > 0.5;
 }
 
+bool CheckGrapple() {
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckGrappleCtrl();
+}
+
+bool GrappleCtlBound() {
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->IsGrappleBinded();
+}
+
 bool CheckSpringBall()
 {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
 
   return wiimote->CheckSpringBallCtrl();
+}
+
+std::tuple<bool, bool> GetBVMenuOptions()
+{
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->GetBVMenuOptions();
 }
 
 bool CheckImprovedMotions()
@@ -334,36 +306,20 @@ std::tuple<double, double> GetPrimeStickXY()
   return wiimote->GetPrimeStickXY();
 }
 
-std::tuple<double, double, double, bool, bool> PrimeSettings()
+std::tuple<double, double, bool, bool, bool> PrimeSettings()
 {
   WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
-  
+
   return wiimote->GetPrimeSettings();
 }
 
-// This function is called periodically by the Core to update Wiimote state.
-void Update(int number, bool connected)
+bool CheckPitchRecentre()
 {
-  if (connected)
-  {
-    if (WiimoteCommon::GetSource(number) == WiimoteSource::Emulated)
-      static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(number))->Update();
-    else
-      WiimoteReal::Update(number);
-  }
-  else
-  {
-    if (ButtonPressed(number))
-    {
-      Connect(number, true);
-      // arbitrary value so it doesn't try to send multiple requests before Dolphin can react
-      // if Wii Remotes are polled at 200Hz then this results in one request being sent per 500ms
-      s_last_connect_request_counter[number] = 100;
-    }
-  }
+  WiimoteEmu::Wiimote* wiimote = static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(0));
+
+  return wiimote->CheckPitchRecentre();
 }
 
-// Save/Load state
 void DoState(PointerWrap& p)
 {
   for (int i = 0; i < MAX_BBMOTES; ++i)
@@ -383,10 +339,7 @@ void DoState(PointerWrap& p)
       // If using a real wiimote or the save-state source does not match the current source,
       // then force a reconnection on load.
       if (source == WiimoteSource::Real || source != WiimoteSource(state_wiimote_source))
-      {
-        Connect(i, false);
-        Connect(i, true);
-      }
+        WiimoteCommon::UpdateSource(i);
     }
   }
 }

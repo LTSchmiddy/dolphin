@@ -173,10 +173,10 @@
       <UniqueIdentifier>{9e91e72c-e432-4e02-8e03-c45c2b6f6957}</UniqueIdentifier>
     </Filter>
     <Filter Include="PrimeHack">
-      <UniqueIdentifier>{702f2ca5-955a-4463-891c-9a9da663f901}</UniqueIdentifier>
+      <UniqueIdentifier>{001725d4-19f9-49ab-bca0-bd53e268b072}</UniqueIdentifier>
     </Filter>
     <Filter Include="PrimeHack\Mods">
-      <UniqueIdentifier>{22fc6154-c3ce-427b-92f0-6819f99ad902}</UniqueIdentifier>
+      <UniqueIdentifier>{cfc8f9e9-f4bf-4aed-85d0-00d4dc96563b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -221,6 +221,9 @@
       <Filter>Debugger</Filter>
     </ClCompile>
     <ClCompile Include="Debugger\Dump.cpp">
+      <Filter>Debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="Debugger\OSThread.cpp">
       <Filter>Debugger</Filter>
     </ClCompile>
     <ClCompile Include="Debugger\PPCDebugInterface.cpp">
@@ -482,6 +485,9 @@
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClCompile>
     <ClCompile Include="HW\GCMemcard\GCMemcardRaw.cpp">
+      <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
+    </ClCompile>
+    <ClCompile Include="HW\GCMemcard\GCMemcardUtils.cpp">
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClCompile>
     <ClCompile Include="HW\GCPad.cpp">
@@ -998,16 +1004,25 @@
     </ClCompile>
     <ClCompile Include="HW\EXI\BBA\TAP_Win32.cpp" />
     <ClCompile Include="HW\EXI\BBA\XLINK_KAI_BBA.cpp" />
+    <ClCompile Include="PrimeHack\Mods\AutoEFB.cpp">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClCompile>
+    <ClCompile Include="PrimeHack\Mods\CutBeamFxMP1.cpp">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClCompile>
     <ClCompile Include="PrimeHack\Mods\FpsControls.cpp">
       <Filter>PrimeHack\Mods</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\HackConfig.cpp">
-      <Filter>PrimeHack</Filter>
+    <ClCompile Include="PrimeHack\Mods\Noclip.cpp">
+      <Filter>PrimeHack\Mods</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\HackManager.cpp">
-      <Filter>PrimeHack</Filter>
+    <ClCompile Include="PrimeHack\Mods\SpringballButton.cpp">
+      <Filter>PrimeHack\Mods</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\Mods\CutBeamFxMP1.cpp">
+    <ClCompile Include="PrimeHack\Mods\ViewModifier.cpp">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClCompile>
+    <ClCompile Include="PrimeHack\Mods\ContextSensitiveControls.cpp">
       <Filter>PrimeHack\Mods</Filter>
     </ClCompile>
     <ClCompile Include="PrimeHack\Transform.cpp">
@@ -1016,17 +1031,14 @@
     <ClCompile Include="PrimeHack\PrimeUtils.cpp">
       <Filter>PrimeHack</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\Mods\SpringballButton.cpp">
-      <Filter>PrimeHack\Mods</Filter>
+    <ClCompile Include="PrimeHack\HackConfig.cpp">
+      <Filter>PrimeHack</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\Mods\Noclip.cpp">
-      <Filter>PrimeHack\Mods</Filter>
+    <ClCompile Include="PrimeHack\HackManager.cpp">
+      <Filter>PrimeHack</Filter>
     </ClCompile>
-    <ClCompile Include="PrimeHack\Mods\ViewModifier.cpp">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClCompile>
-    <ClCompile Include="PrimeHack\Mods\AutoEFB.cpp">
-      <Filter>PrimeHack\Mods</Filter>
+    <ClCompile Include="PrimeHack\EmuVariableManager.cpp">
+      <Filter>PrimeHack</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1074,6 +1086,9 @@
       <Filter>Debugger</Filter>
     </ClInclude>
     <ClInclude Include="Debugger\GCELF.h">
+      <Filter>Debugger</Filter>
+    </ClInclude>
+    <ClInclude Include="Debugger\OSThread.h">
       <Filter>Debugger</Filter>
     </ClInclude>
     <ClInclude Include="Debugger\PPCDebugInterface.h">
@@ -1284,6 +1299,9 @@
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClInclude>
     <ClInclude Include="HW\GCMemcard\GCMemcardRaw.h">
+      <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
+    </ClInclude>
+    <ClInclude Include="HW\GCMemcard\GCMemcardUtils.h">
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClInclude>
     <ClInclude Include="HW\GCPadEmu.h">
@@ -1775,9 +1793,46 @@
     <ClInclude Include="PowerPC\JitArmCommon\BackPatch.h">
       <Filter>PowerPC\JitArmCommon</Filter>
     </ClInclude>
+    <ClInclude Include="SyncIdentifier.h" />
     <ClInclude Include="HW\EXI\BBA\TAP_Win32.h" />
+    <ClInclude Include="PrimeHack\Mods\AutoEFB.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\CutBeamFxMP1.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\DisableBloom.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
     <ClInclude Include="PrimeHack\Mods\FpsControls.h">
       <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\Invulnerability.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\Noclip.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\SpringballButton.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\SkipCutscene.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\ViewModifier.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Mods\ContextSensitiveControls.h">
+      <Filter>PrimeHack\Mods</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\Transform.h">
+      <Filter>PrimeHack</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\PrimeUtils.h">
+      <Filter>PrimeHack</Filter>
+    </ClInclude>
+    <ClInclude Include="PrimeHack\PrimeMod.h">
+      <Filter>PrimeHack</Filter>
     </ClInclude>
     <ClInclude Include="PrimeHack\HackConfig.h">
       <Filter>PrimeHack</Filter>
@@ -1785,38 +1840,11 @@
     <ClInclude Include="PrimeHack\HackManager.h">
       <Filter>PrimeHack</Filter>
     </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\CutBeamFxMP1.h">
+    <ClInclude Include="PrimeHack\Mods\RestoreDashing.h">
       <Filter>PrimeHack\Mods</Filter>
     </ClInclude>
-    <ClInclude Include="PrimeHack\Transform.h">
+    <ClInclude Include="PrimeHack\EmuVariableManager.h">
       <Filter>PrimeHack</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\PrimeMod.h">
-      <Filter>PrimeHack</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\PrimeUtils.h">
-      <Filter>PrimeHack</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\SpringballButton.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\Noclip.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\ViewModifier.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\Invulnerability.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\AutoEFB.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\DisableBloom.h">
-      <Filter>PrimeHack\Mods</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimeHack\Mods\SkipCutscene.h">
-      <Filter>PrimeHack\Mods</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

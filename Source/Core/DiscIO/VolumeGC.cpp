@@ -2,7 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
-#include <cinttypes>
+#include "DiscIO/VolumeGC.h"
+
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -10,6 +11,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <mbedtls/sha1.h>
 
 #include "Common/Assert.h"
 #include "Common/ColorUtil.h"
@@ -24,7 +27,6 @@
 #include "DiscIO/FileSystemGCWii.h"
 #include "DiscIO/Filesystem.h"
 #include "DiscIO/Volume.h"
-#include "DiscIO/VolumeGC.h"
 
 namespace DiscIO
 {
@@ -59,11 +61,10 @@ const FileSystem* VolumeGC::GetFileSystem(const Partition& partition) const
 
 std::string VolumeGC::GetGameTDBID(const Partition& partition) const
 {
-  // Don't return an ID for Datel discs
-  if (!GetBootDOLOffset(*this, PARTITION_NONE).has_value())
-    return "";
+  const std::string game_id = GetGameID(partition);
 
-  return GetGameID(partition);
+  // Don't return an ID for Datel discs that are using the game ID of NHL Hitz 2002
+  return game_id == "GNHE5d" && IsDatelDisc() ? "" : game_id;
 }
 
 Region VolumeGC::GetRegion() const
@@ -133,6 +134,24 @@ Platform VolumeGC::GetVolumeType() const
   return Platform::GameCubeDisc;
 }
 
+bool VolumeGC::IsDatelDisc() const
+{
+  return !GetBootDOLOffset(*this, PARTITION_NONE).has_value();
+}
+
+std::array<u8, 20> VolumeGC::GetSyncHash() const
+{
+  mbedtls_sha1_context context;
+  mbedtls_sha1_init(&context);
+  mbedtls_sha1_starts_ret(&context);
+
+  AddGamePartitionToSyncHash(&context);
+
+  std::array<u8, 20> hash;
+  mbedtls_sha1_finish_ret(&context, hash.data());
+  return hash;
+}
+
 VolumeGC::ConvertedGCBanner VolumeGC::LoadBannerFile() const
 {
   GCBanner banner_file;
@@ -140,7 +159,7 @@ VolumeGC::ConvertedGCBanner VolumeGC::LoadBannerFile() const
                                  reinterpret_cast<u8*>(&banner_file), sizeof(GCBanner));
   if (file_size < 4)
   {
-    WARN_LOG(DISCIO, "Could not read opening.bnr.");
+    WARN_LOG_FMT(DISCIO, "Could not read opening.bnr.");
     return {};  // Return early so that we don't access the uninitialized banner_file.id
   }
 
@@ -157,7 +176,8 @@ VolumeGC::ConvertedGCBanner VolumeGC::LoadBannerFile() const
   }
   else
   {
-    WARN_LOG(DISCIO, "Invalid opening.bnr. Type: %0x Size: %0" PRIx64, banner_file.id, file_size);
+    WARN_LOG_FMT(DISCIO, "Invalid opening.bnr. Type: {:#0x} Size: {:#0x}", banner_file.id,
+                 file_size);
     return {};
   }
 

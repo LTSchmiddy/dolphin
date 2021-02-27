@@ -1,11 +1,15 @@
 package org.dolphinemu.dolphinemu.model;
 
-import android.os.Environment;
+import android.content.Context;
+
+import androidx.annotation.Keep;
 
 public class GameFile
 {
-  private long mPointer;  // Do not rename or move without editing the native code
+  @Keep
+  private long mPointer;
 
+  @Keep
   private GameFile(long pointer)
   {
     mPointer = pointer;
@@ -38,7 +42,9 @@ public class GameFile
 
   public native int getRevision();
 
-  public native String getBlobTypeString();
+  public native int getBlobType();
+
+  public native String getFileFormatName();
 
   public native long getBlockSize();
 
@@ -46,7 +52,11 @@ public class GameFile
 
   public native boolean shouldShowFileFormatDetails();
 
+  public native boolean shouldAllowConversion();
+
   public native long getFileSize();
+
+  public native boolean isDatelDisc();
 
   public native int[] getBanner();
 
@@ -54,10 +64,9 @@ public class GameFile
 
   public native int getBannerHeight();
 
-  public String getCoverPath()
+  public String getCoverPath(Context context)
   {
-    return Environment.getExternalStorageDirectory().getPath() +
-            "/dolphin-emu/Cache/GameCovers/" + getGameTdbId() + ".png";
+    return context.getExternalCacheDir().getPath() + "/GameCovers/" + getGameTdbId() + ".png";
   }
 
   public String getCustomCoverPath()

@@ -77,6 +77,13 @@ bool GetMicButton(const int pad_num)
   return static_cast<GCPad*>(s_config.GetController(pad_num))->GetMicButton();
 }
 
+bool CheckPitchRecentre()
+{
+  GCPad* gcpad = static_cast<GCPad*>(s_config.GetController(0));
+
+  return gcpad->CheckPitchRecentre();
+}
+
 bool PrimeUseController()
 {
   GCPad* gcpad = static_cast<GCPad*>(s_config.GetController(0));
@@ -98,7 +105,7 @@ std::tuple<double, double> GetPrimeStickXY()
   return gcpad->GetPrimeStickXY();
 }
 
-std::tuple<double, double, double, bool, bool> PrimeSettings()
+std::tuple<double, double, bool, bool> PrimeSettings()
 {
   GCPad* gcpad = static_cast<GCPad*>(s_config.GetController(0));
 

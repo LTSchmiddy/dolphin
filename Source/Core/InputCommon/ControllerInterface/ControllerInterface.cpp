@@ -107,14 +107,10 @@ void ControllerInterface::RefreshDevices()
 
 #ifdef CIFACE_USE_WIN32
   ciface::Win32::PopulateDevices(m_wsi.render_surface);
-
-  prime::InitializeHack("Keyboard Mouse", "DInput");
 #endif
 #ifdef CIFACE_USE_XLIB
   if (m_wsi.type == WindowSystemType::X11)
     ciface::XInput2::PopulateDevices(m_wsi.render_surface);
-
-    prime::InitializeHack("Virtual core pointer", "XInput2");
 #endif
 #ifdef CIFACE_USE_OSX
   if (m_wsi.type == WindowSystemType::MacOS)
@@ -138,6 +134,8 @@ void ControllerInterface::RefreshDevices()
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
   ciface::DualShockUDPClient::PopulateDevices();
 #endif
+
+  prime::InitializeHack();
 
   WiimoteReal::ProcessWiimotePool();
 
@@ -227,7 +225,7 @@ void ControllerInterface::AddDevice(std::shared_ptr<ciface::Core::Device> device
       device->SetId(id);
     }
 
-    NOTICE_LOG(SERIALINTERFACE, "Added device: %s", device->GetQualifiedName().c_str());
+    NOTICE_LOG_FMT(SERIALINTERFACE, "Added device: {}", device->GetQualifiedName());
     m_devices.emplace_back(std::move(device));
   }
 
@@ -242,7 +240,7 @@ void ControllerInterface::RemoveDevice(std::function<bool(const ciface::Core::De
     auto it = std::remove_if(m_devices.begin(), m_devices.end(), [&callback](const auto& dev) {
       if (callback(dev.get()))
       {
-        NOTICE_LOG(SERIALINTERFACE, "Removed device: %s", dev->GetQualifiedName().c_str());
+        NOTICE_LOG_FMT(SERIALINTERFACE, "Removed device: {}", dev->GetQualifiedName());
         return true;
       }
       return false;

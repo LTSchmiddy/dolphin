@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -350,13 +351,11 @@ bool RVZPackDecompressor::Decompress(const DecompressionBuffer& in, Decompressio
       if (result)
         return *result;
 
-      m_size = Common::swap32(m_decompressed.data.data() + m_decompressed_bytes_read);
+      const u32 size = Common::swap32(m_decompressed.data.data() + m_decompressed_bytes_read);
 
-      m_junk = m_size & 0x80000000;
+      m_junk = size & 0x80000000;
       if (m_junk)
       {
-        m_size &= 0x7FFFFFFF;
-
         constexpr size_t SEED_SIZE = LaggedFibonacciGenerator::SEED_SIZE * sizeof(u32);
         constexpr size_t BLOCK_SIZE = 0x8000;
 
@@ -372,6 +371,7 @@ bool RVZPackDecompressor::Decompress(const DecompressionBuffer& in, Decompressio
       }
 
       m_decompressed_bytes_read += sizeof(u32);
+      m_size = size & 0x7FFFFFFF;
     }
 
     size_t bytes_to_write = std::min<size_t>(m_size, out->data.size() - out->bytes_written);
@@ -447,7 +447,7 @@ PurgeCompressor::PurgeCompressor()
 
 PurgeCompressor::~PurgeCompressor() = default;
 
-bool PurgeCompressor::Start()
+bool PurgeCompressor::Start(std::optional<u64> size)
 {
   m_buffer.clear();
   m_bytes_written = 0;
@@ -551,7 +551,7 @@ Bzip2Compressor::~Bzip2Compressor()
   BZ2_bzCompressEnd(&m_stream);
 }
 
-bool Bzip2Compressor::Start()
+bool Bzip2Compressor::Start(std::optional<u64> size)
 {
   ASSERT_MSG(DISCIO, m_stream.state == nullptr,
              "Called Bzip2Compressor::Start() twice without calling Bzip2Compressor::End()");
@@ -675,7 +675,7 @@ LZMACompressor::~LZMACompressor()
   lzma_end(&m_stream);
 }
 
-bool LZMACompressor::Start()
+bool LZMACompressor::Start(std::optional<u64> size)
 {
   if (m_initialization_failed)
     return false;
@@ -746,8 +746,11 @@ ZstdCompressor::ZstdCompressor(int compression_level)
 {
   m_stream = ZSTD_createCStream();
 
-  if (ZSTD_isError(ZSTD_CCtx_setParameter(m_stream, ZSTD_c_compressionLevel, compression_level)))
+  if (ZSTD_isError(ZSTD_CCtx_setParameter(m_stream, ZSTD_c_compressionLevel, compression_level)) ||
+      ZSTD_isError(ZSTD_CCtx_setParameter(m_stream, ZSTD_c_contentSizeFlag, 0)))
+  {
     m_stream = nullptr;
+  }
 }
 
 ZstdCompressor::~ZstdCompressor()
@@ -755,7 +758,7 @@ ZstdCompressor::~ZstdCompressor()
   ZSTD_freeCStream(m_stream);
 }
 
-bool ZstdCompressor::Start()
+bool ZstdCompressor::Start(std::optional<u64> size)
 {
   if (!m_stream)
     return false;
@@ -763,7 +766,16 @@ bool ZstdCompressor::Start()
   m_buffer.clear();
   m_out_buffer = {};
 
-  return !ZSTD_isError(ZSTD_CCtx_reset(m_stream, ZSTD_reset_session_only));
+  if (ZSTD_isError(ZSTD_CCtx_reset(m_stream, ZSTD_reset_session_only)))
+    return false;
+
+  if (size)
+  {
+    if (ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(m_stream, *size)))
+      return false;
+  }
+
+  return true;
 }
 
 bool ZstdCompressor::Compress(const u8* data, size_t size)

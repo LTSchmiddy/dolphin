@@ -3,7 +3,10 @@
 #include "Core/PrimeHack/HackConfig.h"
 #include "Core/PrimeHack/PrimeUtils.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/ConfigManager.h"
 #include "InputCommon/GenericMouse.h"
+
+#pragma optimize("", off)
 
 namespace prime {
 HackManager::HackManager()
@@ -23,7 +26,15 @@ void HackManager::run_active_mods() {
   {
   case 0x38000018:
     active_game = Game::MENU;
-    active_region = Region::NTSC;
+    active_region = Region::NTSC_U;
+    break;
+  case 0x806ddaec:
+    active_game = Game::MENU_PRIME_1;
+    active_region = Region::NTSC_J;
+    break;
+  case 0x801e0000:
+    active_game = Game::MENU_PRIME_2;
+    active_region = Region::NTSC_J;
     break;
   case 0x7c0000d0:
     active_game = Game::MENU;
@@ -31,7 +42,11 @@ void HackManager::run_active_mods() {
     break;
   case 0x4e800020:
     active_game = Game::PRIME_1;
-    active_region = Region::NTSC;
+    active_region = Region::NTSC_U;
+    break;
+  case 0x53687566:
+    active_game = Game::PRIME_1;
+    active_region = Region::NTSC_J;
     break;
   case 0x7c962378:
     active_game = Game::PRIME_1;
@@ -39,7 +54,11 @@ void HackManager::run_active_mods() {
     break;
   case 0x4bff64e1:
     active_game = Game::PRIME_2;
-    active_region = Region::NTSC;
+    active_region = Region::NTSC_U;
+    break;
+  case 0x936daabc:
+    active_game = Game::PRIME_2;
+    active_region = Region::NTSC_J;
     break;
   case 0x80830000:
     active_game = Game::PRIME_2;
@@ -48,7 +67,7 @@ void HackManager::run_active_mods() {
   case 0x80010070:
     if (PowerPC::HostRead_U32(0x80576ae8) == 0x7d415378) {
       active_game = Game::PRIME_3;
-      active_region = Region::NTSC;
+      active_region = Region::NTSC_U;
     }
     else {
       active_game = Game::INVALID_GAME;
@@ -69,16 +88,37 @@ void HackManager::run_active_mods() {
     u32 region_code = PowerPC::HostRead_U32(0x80000000);
     if (region_code == FOURCC('G', 'M', '8', 'E')) {
       active_game = Game::PRIME_1_GCN;
-      active_region = Region::NTSC;
+      active_region = Region::NTSC_U;
     }
     else if (region_code == FOURCC('G', 'M', '8', 'P')) {
       active_game = Game::PRIME_1_GCN;
+      active_region = Region::PAL;
+    }
+    else if (region_code == FOURCC('G', '2', 'M', 'E')) {
+      active_game = Game::PRIME_2_GCN;
+      active_region = Region::NTSC_U;
+    }
+    else if (region_code == FOURCC('G', '2', 'M', 'P')) {
+      active_game = Game::PRIME_2_GCN;
+      active_region = Region::PAL;
+    }
+    else if (region_code == FOURCC('R', 'M', '3', 'E')) {
+      active_game = Game::PRIME_3_STANDALONE;
+      active_region = Region::NTSC_U;
+    }
+    else if (region_code == FOURCC('R', 'M', '3', 'J')) {
+      active_game = Game::PRIME_3_STANDALONE;
+      active_region = Region::NTSC_J;
+    }
+    else if (region_code == FOURCC('R', 'M', '3', 'P')) {
+      active_game = Game::PRIME_3_STANDALONE;
       active_region = Region::PAL;
     }
     else {
       active_game = Game::INVALID_GAME;
       active_region = Region::INVALID_REGION;
     }
+    break;
   }
 
   if (active_game != last_game || active_region != last_region) {
@@ -94,14 +134,17 @@ void HackManager::run_active_mods() {
   if (active_game != Game::INVALID_GAME && active_region != Region::INVALID_REGION) {
     for (auto& mod : mods) {
       if (!mod.second->is_initialized()) {
-        mod.second->init_mod(active_game, active_region);
-        mod.second->save_original_instructions();
+        bool was_init = mod.second->init_mod(active_game, active_region);
+        if (was_init) {
+          mod.second->save_original_instructions();
+          mod.second->mark_initialized();
+        }
       }
       if (mod.second->should_apply_changes()) {
-          mod.second->apply_instruction_changes();
+        mod.second->apply_instruction_changes();
       }
     }
-      
+
     last_game = active_game;
     last_region = active_region;
     for (auto& mod : mods) {
@@ -122,6 +165,30 @@ void HackManager::update_mod_states()
   set_mod_enabled("noclip", GetNoclip());
   set_mod_enabled("invulnerability", GetInvulnerability());
   set_mod_enabled("skip_cutscene", GetSkipCutscene());
+  set_mod_enabled("restore_dashing", GetRestoreDashing());
+
+  // Disallow any PrimeHack control mods
+  if (!SConfig::GetInstance().bEnablePrimeHack) {
+    disable_mod("fps_controls");
+    disable_mod("springball_button");
+    disable_mod("context_sensitive_controls");
+
+    return;
+  } else {
+    enable_mod("fps_controls");
+    enable_mod("springball_button");
+  }
+
+  if (ImprovedMotionControls()) {
+    enable_mod("context_sensitive_controls");
+  }
+  else {
+    auto result = mods.find("context_sensitive_controls");
+    if (result == mods.end()) {
+      return;
+    }
+    result->second->set_state(ModState::CODE_DISABLED);
+  }
 }
 
 void HackManager::add_mod(std::string const &name, std::unique_ptr<PrimeMod> mod) {

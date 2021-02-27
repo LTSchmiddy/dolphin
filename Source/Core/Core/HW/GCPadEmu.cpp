@@ -64,14 +64,10 @@ GCPad::GCPad(const unsigned int index) : m_index(index)
   }
 
   // sticks
-  constexpr auto main_gate_radius =
-      ControlState(MAIN_STICK_GATE_RADIUS) / GCPadStatus::MAIN_STICK_RADIUS;
   groups.emplace_back(m_main_stick = new ControllerEmu::OctagonAnalogStick(
-                          "Main Stick", _trans("Control Stick"), main_gate_radius));
-
-  constexpr auto c_gate_radius = ControlState(C_STICK_GATE_RADIUS) / GCPadStatus::C_STICK_RADIUS;
+                          "Main Stick", _trans("Control Stick"), MAIN_STICK_GATE_RADIUS));
   groups.emplace_back(m_c_stick = new ControllerEmu::OctagonAnalogStick(
-                          "C-Stick", _trans("C Stick"), c_gate_radius));
+                          "C-Stick", _trans("C Stick"), C_STICK_GATE_RADIUS));
 
   // triggers
   groups.emplace_back(m_triggers = new ControllerEmu::MixedTriggers(_trans("Triggers")));
@@ -140,16 +136,13 @@ GCPad::GCPad(const unsigned int index) : m_index(index)
     &m_primehack_camera_sensitivity,
     {"Camera Sensitivity", nullptr, nullptr, _trans("Camera Sensitivity")}, 15, 1, 100);
 
-  m_primehack_camera->AddSetting(&m_primehack_fieldofview,
-    {"Field of View", nullptr, nullptr, _trans("Field of View")}, 60,
-    1, 170);
-
   constexpr auto gate_radius = ControlState(STICK_GATE_RADIUS) / STICK_RADIUS;
   groups.emplace_back(m_primehack_stick =
     new ControllerEmu::OctagonAnalogStick(_trans("Camera Control"), gate_radius));
 
   m_primehack_stick->AddSetting(&m_primehack_horizontal_sensitivity, {"Horizontal Sensitivity", nullptr, nullptr, _trans("Horizontal Sensitivity")}, 45, 1, 100);
   m_primehack_stick->AddSetting(&m_primehack_vertical_sensitivity, {"Vertical Sensitivity", nullptr, nullptr, _trans("Vertical Sensitivity")}, 35, 1, 100);
+  m_primehack_stick->AddInput(ControllerEmu::Translatability::Translate, _trans("Reset Camera Pitch"));
 
   groups.emplace_back(m_primehack_modes = new ControllerEmu::PrimeHackModes(_trans("PrimeHack")));
 
@@ -250,16 +243,15 @@ void GCPad::LoadDefaults(const ControllerInterface& ciface)
   EmulatedController::LoadDefaults(ciface);
 
   // Buttons
-  m_buttons->SetControlExpression(0, "X");  // A
-  m_buttons->SetControlExpression(1, "Z");  // B
-  m_buttons->SetControlExpression(2, "C");  // X
-  m_buttons->SetControlExpression(3, "S");  // Y
-  m_buttons->SetControlExpression(4, "D");  // Z
+  m_buttons->SetControlExpression(0, "`Click 0`");  // A
+  m_buttons->SetControlExpression(1, "SPACE");  // B
+  m_buttons->SetControlExpression(2, "Ctrl");  // X
+  m_buttons->SetControlExpression(3, "F");  // Y
+  m_buttons->SetControlExpression(4, "TAB");  // Z
 #ifdef _WIN32
-  m_buttons->SetControlExpression(5, "!LMENU & RETURN");  // Start
+  m_buttons->SetControlExpression(5, "GRAVE");  // Start
 #else
-  // OS X/Linux
-  m_buttons->SetControlExpression(5, "!`Alt_L` & Return");  // Start
+  m_buttons->SetControlExpression(5, "GRAVE");          // Start
 #endif
 
   // stick modifiers to 50 %
@@ -267,47 +259,33 @@ void GCPad::LoadDefaults(const ControllerInterface& ciface)
   m_c_stick->controls[4]->control_ref->range = 0.5f;
 
   // D-Pad
-  m_dpad->SetControlExpression(0, "T");  // Up
-  m_dpad->SetControlExpression(1, "G");  // Down
-  m_dpad->SetControlExpression(2, "F");  // Left
-  m_dpad->SetControlExpression(3, "H");  // Right
+  m_dpad->SetControlExpression(0, "E & `1`");  // Up
+  m_dpad->SetControlExpression(1, "E & `3`");  // Down
+  m_dpad->SetControlExpression(2, "E & `2`");  // Left
+  m_dpad->SetControlExpression(3, "E & `4`");  // Right
 
   // C Stick
-  m_c_stick->SetControlExpression(0, "I");  // Up
-  m_c_stick->SetControlExpression(1, "K");  // Down
-  m_c_stick->SetControlExpression(2, "J");  // Left
-  m_c_stick->SetControlExpression(3, "L");  // Right
+  m_c_stick->SetControlExpression(0, "!E & `1`");  // Up
+  m_c_stick->SetControlExpression(1, "!E & `3`");  // Down
+  m_c_stick->SetControlExpression(2, "!E & `4`");  // Left
+  m_c_stick->SetControlExpression(3, "!E & `2`");  // Right
+
+  // Control Stick
 #ifdef _WIN32
-  m_c_stick->SetControlExpression(4, "LCONTROL");  // Modifier
-
-  // Control Stick
-  m_main_stick->SetControlExpression(0, "UP");      // Up
-  m_main_stick->SetControlExpression(1, "DOWN");    // Down
-  m_main_stick->SetControlExpression(2, "LEFT");    // Left
-  m_main_stick->SetControlExpression(3, "RIGHT");   // Right
-  m_main_stick->SetControlExpression(4, "LSHIFT");  // Modifier
-
+  m_main_stick->SetControlExpression(0, "W | UP");     // Up
+  m_main_stick->SetControlExpression(1, "S | DOWN");   // Down
+  m_main_stick->SetControlExpression(2, "A | LEFT");   // Left
+  m_main_stick->SetControlExpression(3, "D | RIGHT");  // Right
 #elif __APPLE__
-  // Modifier
-  m_c_stick->SetControlExpression(4, "Left Control");
-
-  // Control Stick
   m_main_stick->SetControlExpression(0, "Up Arrow");     // Up
   m_main_stick->SetControlExpression(1, "Down Arrow");   // Down
   m_main_stick->SetControlExpression(2, "Left Arrow");   // Left
   m_main_stick->SetControlExpression(3, "Right Arrow");  // Right
-  m_main_stick->SetControlExpression(4, "Left Shift");   // Modifier
 #else
-  // not sure if these are right
-
-  m_c_stick->SetControlExpression(4, "Control_L");  // Modifier
-
-  // Control Stick
-  m_main_stick->SetControlExpression(0, "Up");       // Up
-  m_main_stick->SetControlExpression(1, "Down");     // Down
-  m_main_stick->SetControlExpression(2, "Left");     // Left
-  m_main_stick->SetControlExpression(3, "Right");    // Right
-  m_main_stick->SetControlExpression(4, "Shift_L");  // Modifier
+  m_main_stick->SetControlExpression(0, "W | Up");     // Up
+  m_main_stick->SetControlExpression(1, "S | Down");   // Down
+  m_main_stick->SetControlExpression(2, "A | Left");   // Left
+  m_main_stick->SetControlExpression(3, "D | Right");  // Right
 #endif
 
   // Because our defaults use keyboard input, set calibration shapes to squares.
@@ -315,8 +293,8 @@ void GCPad::LoadDefaults(const ControllerInterface& ciface)
   m_main_stick->SetCalibrationFromGate(ControllerEmu::SquareStickGate(1.0));
 
   // Triggers
-  m_triggers->SetControlExpression(0, "Q");  // L
-  m_triggers->SetControlExpression(1, "W");  // R
+  m_triggers->SetControlExpression(0, "Shift");  // L
+  m_triggers->SetControlExpression(2, "Shift");
 }
 
 bool GCPad::GetMicButton() const
@@ -335,7 +313,12 @@ std::tuple<double, double> GCPad::GetPrimeStickXY()
 {
   const auto stick_state = m_primehack_stick->GetState();
 
-  return std::make_tuple(stick_state.x * m_primehack_horizontal_sensitivity.GetValue() * 100, stick_state.y * m_primehack_vertical_sensitivity.GetValue() * -100);
+  return std::make_tuple(stick_state.x * m_primehack_horizontal_sensitivity.GetValue(), stick_state.y * -m_primehack_vertical_sensitivity.GetValue());
+}
+
+bool GCPad::CheckPitchRecentre()
+{
+  return m_primehack_stick->controls[5]->GetState() > 0.5;
 }
 
 bool GCPad::PrimeControllerMode()
@@ -348,11 +331,11 @@ void GCPad::SetPrimeMode(bool controller)
   m_primehack_modes->SetSelectedDevice(controller ? 1 : 0);
 }
 
-std::tuple<double, double, double, bool, bool> GCPad::GetPrimeSettings()
+std::tuple<double, double, bool, bool> GCPad::GetPrimeSettings()
 {
   std::tuple t = std::make_tuple(
     m_primehack_camera_sensitivity.GetValue(), 0.f,
-    m_primehack_fieldofview.GetValue(), m_primehack_invert_x.GetValue(),
+    m_primehack_invert_x.GetValue(),
     m_primehack_invert_y.GetValue());
 
   return t;

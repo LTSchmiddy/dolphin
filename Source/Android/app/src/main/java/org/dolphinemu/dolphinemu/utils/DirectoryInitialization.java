@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Dolphin Emulator Project
  * Licensed under GPLv2+
  * Refer to the license.txt file included.
@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.os.Environment;
 import android.preference.PreferenceManager;
 
+import androidx.annotation.NonNull;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.dolphinemu.dolphinemu.NativeLibrary;
@@ -35,14 +36,17 @@ public final class DirectoryInitialization
           "org.dolphinemu.dolphinemu.DIRECTORY_INITIALIZATION";
 
   public static final String EXTRA_STATE = "directoryState";
-  private static final int WiimoteNewVersion = 4;  // Last changed in PR 8503
-  private static volatile DirectoryInitializationState directoryState = null;
+  private static final int WiimoteNewVersion = 5;  // Last changed in PR 8907
+  private static volatile DirectoryInitializationState directoryState =
+          DirectoryInitializationState.NOT_YET_INITIALIZED;
+  private static volatile boolean areDirectoriesAvailable = false;
   private static String userPath;
   private static String internalPath;
   private static AtomicBoolean isDolphinDirectoryInitializationRunning = new AtomicBoolean(false);
 
   public enum DirectoryInitializationState
   {
+    NOT_YET_INITIALIZED,
     DOLPHIN_DIRECTORIES_INITIALIZED,
     EXTERNAL_STORAGE_PERMISSION_NEEDED,
     CANT_FIND_EXTERNAL_STORAGE
@@ -50,6 +54,9 @@ public final class DirectoryInitialization
 
   public static void start(Context context)
   {
+    if (!isDolphinDirectoryInitializationRunning.compareAndSet(false, true))
+      return;
+
     // Can take a few seconds to run, so don't block UI thread.
     //noinspection TrivialFunctionalExpressionUsage
     ((Runnable) () -> init(context)).run();
@@ -57,19 +64,25 @@ public final class DirectoryInitialization
 
   private static void init(Context context)
   {
-    if (!isDolphinDirectoryInitializationRunning.compareAndSet(false, true))
-      return;
-
     if (directoryState != DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED)
     {
       if (PermissionsHandler.hasWriteAccess(context))
       {
-        if (setDolphinUserDirectory())
+        if (setDolphinUserDirectory(context))
         {
           initializeInternalStorage(context);
-          initializeExternalStorage(context);
+          boolean wiimoteIniWritten = initializeExternalStorage(context);
           NativeLibrary.Initialize();
           NativeLibrary.ReportStartToAnalytics();
+
+          areDirectoriesAvailable = true;
+
+          if (wiimoteIniWritten)
+          {
+            // This has to be done after calling NativeLibrary.Initialize(),
+            // as it relies on the config system
+            EmulationActivity.updateWiimoteNewIniPreferences(context);
+          }
 
           directoryState = DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED;
         }
@@ -88,22 +101,27 @@ public final class DirectoryInitialization
     sendBroadcastState(directoryState, context);
   }
 
-  private static boolean setDolphinUserDirectory()
+  private static boolean setDolphinUserDirectory(Context context)
   {
-    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
-    {
-      File externalPath = Environment.getExternalStorageDirectory();
-      if (externalPath != null)
-      {
-        userPath = externalPath.getAbsolutePath() + "/dolphin-emu";
-        Log.debug("[DirectoryInitialization] User Dir: " + userPath);
-        NativeLibrary.SetUserDirectory(userPath);
-        return true;
-      }
+    if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
+      return false;
 
-    }
+    File externalPath = Environment.getExternalStorageDirectory();
+    if (externalPath == null)
+      return false;
 
-    return false;
+    userPath = externalPath.getAbsolutePath() + "/dolphin-emu";
+    Log.debug("[DirectoryInitialization] User Dir: " + userPath);
+    NativeLibrary.SetUserDirectory(userPath);
+
+    File cacheDir = context.getExternalCacheDir();
+    if (cacheDir == null)
+      return false;
+
+    Log.debug("[DirectoryInitialization] Cache Dir: " + cacheDir.getPath());
+    NativeLibrary.SetCacheDirectory(cacheDir.getPath());
+
+    return true;
   }
 
   private static void initializeInternalStorage(Context context)
@@ -129,7 +147,8 @@ public final class DirectoryInitialization
     SetSysDirectory(sysDirectory.getPath());
   }
 
-  private static void initializeExternalStorage(Context context)
+  // Returns whether the WiimoteNew.ini file was written to
+  private static boolean initializeExternalStorage(Context context)
   {
     // Create User directory structure and copy some NAND files from the extracted Sys directory.
     CreateUserDirectories();
@@ -151,31 +170,46 @@ public final class DirectoryInitialization
     copyAsset("GCPadNew.ini", new File(configDirectory, "GCPadNew.ini"), true, context);
 
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-    if (prefs.getInt("WiimoteNewVersion", 0) != WiimoteNewVersion)
+    boolean overwriteWiimoteIni = prefs.getInt("WiimoteNewVersion", 0) != WiimoteNewVersion;
+    boolean wiimoteIniWritten = copyAsset("WiimoteNew.ini",
+            new File(configDirectory, "WiimoteNew.ini"), overwriteWiimoteIni, context);
+    if (overwriteWiimoteIni)
     {
-      EmulationActivity.clearWiimoteNewIniLinkedPreferences(context);
-      copyAsset("WiimoteNew.ini", new File(configDirectory, "WiimoteNew.ini"), true, context);
       SharedPreferences.Editor sPrefsEditor = prefs.edit();
       sPrefsEditor.putInt("WiimoteNewVersion", WiimoteNewVersion);
       sPrefsEditor.apply();
     }
-    else
-    {
-      copyAsset("WiimoteNew.ini", new File(configDirectory, "WiimoteNew.ini"), false, context);
-    }
 
     copyAsset("WiimoteProfile.ini", new File(profileDirectory, "WiimoteProfile.ini"), true,
             context);
+
+    return wiimoteIniWritten;
   }
 
-  private static void deleteDirectoryRecursively(File file)
+  private static void deleteDirectoryRecursively(@NonNull final File file)
   {
     if (file.isDirectory())
     {
-      for (File child : file.listFiles())
+      File[] files = file.listFiles();
+
+      if (files == null)
+      {
+        return;
+      }
+
+      for (File child : files)
         deleteDirectoryRecursively(child);
     }
-    file.delete();
+    if (!file.delete())
+    {
+      Log.error("[DirectoryInitialization] Failed to delete " + file.getAbsolutePath());
+    }
+  }
+
+  public static boolean shouldStart(Context context)
+  {
+    return !isDolphinDirectoryInitializationRunning.get() &&
+            getDolphinDirectoriesState(context) == DirectoryInitializationState.NOT_YET_INITIALIZED;
   }
 
   public static boolean areDolphinDirectoriesReady()
@@ -183,34 +217,37 @@ public final class DirectoryInitialization
     return directoryState == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED;
   }
 
+  public static DirectoryInitializationState getDolphinDirectoriesState(Context context)
+  {
+    if (directoryState == DirectoryInitializationState.NOT_YET_INITIALIZED &&
+            !PermissionsHandler.hasWriteAccess(context))
+    {
+      return DirectoryInitializationState.EXTERNAL_STORAGE_PERMISSION_NEEDED;
+    }
+    else
+    {
+      return directoryState;
+    }
+  }
+
   public static String getUserDirectory()
   {
-    if (directoryState == null)
-    {
-      throw new IllegalStateException("DirectoryInitialization has to run at least once!");
-    }
-    else if (isDolphinDirectoryInitializationRunning.get())
+    if (!areDirectoriesAvailable)
     {
       throw new IllegalStateException(
-              "DirectoryInitialization has to finish running first!");
+              "DirectoryInitialization must run before accessing the user directory!");
     }
     return userPath;
-
   }
 
   public static String getDolphinInternalDirectory()
   {
-    if (directoryState == null)
-    {
-      throw new IllegalStateException("DirectoryInitialization has to run at least once!");
-    }
-    else if (isDolphinDirectoryInitializationRunning.get())
+    if (!areDirectoriesAvailable)
     {
       throw new IllegalStateException(
-              "DirectoryInitialization has to finish running first!");
+              "DirectoryInitialization must run before accessing the internal directory!");
     }
     return internalPath;
-
   }
 
   private static void sendBroadcastState(DirectoryInitializationState state, Context context)
@@ -221,7 +258,7 @@ public final class DirectoryInitialization
     LocalBroadcastManager.getInstance(context).sendBroadcast(localIntent);
   }
 
-  private static void copyAsset(String asset, File output, Boolean overwrite, Context context)
+  private static boolean copyAsset(String asset, File output, Boolean overwrite, Context context)
   {
     Log.verbose("[DirectoryInitialization] Copying File " + asset + " to " + output);
 
@@ -229,11 +266,14 @@ public final class DirectoryInitialization
     {
       if (!output.exists() || overwrite)
       {
-        InputStream in = context.getAssets().open(asset);
-        OutputStream out = new FileOutputStream(output);
-        copyFile(in, out);
-        in.close();
-        out.close();
+        try (InputStream in = context.getAssets().open(asset))
+        {
+          try (OutputStream out = new FileOutputStream(output))
+          {
+            copyFile(in, out);
+            return true;
+          }
+        }
       }
     }
     catch (IOException e)
@@ -241,6 +281,7 @@ public final class DirectoryInitialization
       Log.error("[DirectoryInitialization] Failed to copy asset file: " + asset +
               e.getMessage());
     }
+    return false;
   }
 
   private static void copyAssetFolder(String assetFolder, File outputFolder, Boolean overwrite,
@@ -251,12 +292,23 @@ public final class DirectoryInitialization
 
     try
     {
+      String[] assetList = context.getAssets().list(assetFolder);
+
+      if (assetList == null)
+      {
+        return;
+      }
+
       boolean createdFolder = false;
-      for (String file : context.getAssets().list(assetFolder))
+      for (String file : assetList)
       {
         if (!createdFolder)
         {
-          outputFolder.mkdir();
+          if (!outputFolder.mkdir())
+          {
+            Log.error("[DirectoryInitialization] Failed to create folder " +
+                    outputFolder.getAbsolutePath());
+          }
           createdFolder = true;
         }
         copyAssetFolder(assetFolder + File.separator + file, new File(outputFolder, file),
@@ -269,20 +321,6 @@ public final class DirectoryInitialization
     {
       Log.error("[DirectoryInitialization] Failed to copy asset folder: " + assetFolder +
               e.getMessage());
-    }
-  }
-
-  public static void copyFile(String from, String to)
-  {
-    try
-    {
-      InputStream in = new FileInputStream(from);
-      OutputStream out = new FileOutputStream(to);
-      copyFile(in, out);
-    }
-    catch (IOException e)
-    {
-
     }
   }
 
@@ -302,7 +340,10 @@ public final class DirectoryInitialization
     File wiiPath = new File(directory);
     if (!wiiPath.isDirectory())
     {
-      wiiPath.mkdirs();
+      if (!wiiPath.mkdirs())
+      {
+        Log.error("[DirectoryInitialization] Failed to create folder " + wiiPath.getAbsolutePath());
+      }
     }
   }
 

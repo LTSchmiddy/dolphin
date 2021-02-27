@@ -5,17 +5,20 @@
 
 #include "Common/IniFile.h"
 #include "Core/PrimeHack/PrimeUtils.h"
+#include "Core/PrimeHack/EmuVariableManager.h"
 
 #include "Core/PrimeHack/Mods/AutoEFB.h"
 #include "Core/PrimeHack/Mods/CutBeamFxMP1.h"
 #include "Core/PrimeHack/Mods/DisableBloom.h"
 #include "Core/PrimeHack/Mods/FpsControls.h"
+#include "Core/PrimeHack/Mods/RestoreDashing.h"
 #include "Core/PrimeHack/Mods/MorphBallCamera.h"
 #include "Core/PrimeHack/Mods/Invulnerability.h"
 #include "Core/PrimeHack/Mods/Noclip.h"
 #include "Core/PrimeHack/Mods/SkipCutscene.h"
 #include "Core/PrimeHack/Mods/SpringballButton.h"
 #include "Core/PrimeHack/Mods/ViewModifier.h"
+#include "Core/PrimeHack/Mods/ContextSensitiveControls.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
@@ -26,21 +29,22 @@
 #include "Core/Config/GraphicsSettings.h"
 #include "VideoCommon/VideoConfig.h"
 
-
 namespace prime {
 namespace {
 float sensitivity;
 float cursor_sensitivity;
 float camera_fov;
 
-std::string device_name, device_source;
 bool inverted_x = false;
 bool inverted_y = false;
 HackManager hack_mgr;
+EmuVariableManager var_mgr;
 bool is_running = false;
+CameraLock lock_camera = CameraLock::Unlocked;
+bool reticle_lock = false;
 }
 
-void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_device_source) {
+void InitializeHack() {
   if (is_running) return; is_running = true;
 
   // Create all mods
@@ -52,22 +56,24 @@ void InitializeHack(std::string const& mkb_device_name, std::string const& mkb_d
   hack_mgr.add_mod("morphball_camera", std::make_unique<MorphBallCamera>());
   hack_mgr.add_mod("noclip", std::make_unique<Noclip>());
   hack_mgr.add_mod("skip_cutscene", std::make_unique<SkipCutscene>());
+  hack_mgr.add_mod("restore_dashing", std::make_unique<RestoreDashing>());
   hack_mgr.add_mod("springball_button", std::make_unique<SpringballButton>());
   hack_mgr.add_mod("fov_modifier", std::make_unique<ViewModifier>());
+  hack_mgr.add_mod("context_sensitive_controls", std::make_unique<ContextSensitiveControls>());
 
-  device_name = mkb_device_name;
-  device_source = mkb_device_source;
+  hack_mgr.enable_mod("skip_cutscene");
+  hack_mgr.enable_mod("fov_modifier");
 
-  // enable NO mods!!!
+  // Enable no PrimeHack control mods
   if (!SConfig::GetInstance().bEnablePrimeHack) {
     return;
   }
 
-  hack_mgr.enable_mod("fov_modifier");
+
   hack_mgr.enable_mod("fps_controls");
   hack_mgr.enable_mod("morphball_camera");
   hack_mgr.enable_mod("springball_button");
-  hack_mgr.enable_mod("skip_cutscene");
+  hack_mgr.enable_mod("context_sensitive_controls");
 }
 
 bool CheckBeamCtl(int beam_num) {
@@ -114,6 +120,14 @@ bool CheckJump() {
   return Wiimote::CheckJump();
 }
 
+bool CheckGrappleCtl() {
+  return Wiimote::CheckGrapple();
+}
+
+bool GrappleCtlBound() {
+  return Wiimote::GrappleCtlBound();
+}
+
 void SetEFBToTexture(bool toggle) {
   return Config::SetCurrent(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM, toggle);
 }
@@ -125,7 +139,6 @@ bool UseMPAutoEFB() {
 bool LockCameraInPuzzles() {
   return Config::Get(Config::LOCKCAMERA_IN_PUZZLES);
 }
-
 
 bool GetNoclip() {
   return SConfig::GetInstance().bPrimeNoclip;
@@ -139,6 +152,10 @@ bool GetSkipCutscene() {
   return SConfig::GetInstance().bPrimeSkipCutscene;
 }
 
+bool GetRestoreDashing() {
+  return SConfig::GetInstance().bPrimeRestoreDashing;
+}
+
 bool GetEFBTexture() {
   return Config::Get(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
 }
@@ -149,6 +166,14 @@ bool GetBloom() {
 
 bool GetEnableSecondaryGunFX() {
   return Config::Get(Config::ENABLE_SECONDARY_GUNFX);
+}
+
+bool GetShowGCCrosshair() {
+  return Config::Get(Config::GC_SHOW_CROSSHAIR);
+}
+
+u32 GetGCCrosshairColor() {
+  return Config::Get(Config::GC_CROSSHAIR_COLOR_RGBA);
 }
 
 bool GetAutoArmAdjust() {
@@ -168,21 +193,21 @@ std::tuple<float, float, float> GetArmXYZ() {
 }
 
 void UpdateHackSettings() {
-  double camera, cursor, fov;
-  bool invertx, inverty;
+  double camera, cursor;
+  bool invertx, inverty, lock = false;
 
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN)
-    std::tie<double, double, double, bool, bool>(camera, cursor, fov, invertx, inverty) =
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN)
+    std::tie<double, double, bool, bool>(camera, cursor, invertx, inverty) =
       Pad::PrimeSettings();
   else
-    std::tie<double, double, double, bool, bool>(camera, cursor, fov, invertx, inverty) =
+    std::tie<double, double, bool, bool, bool>(camera, cursor, invertx, inverty, lock) =
       Wiimote::PrimeSettings();
 
   SetSensitivity((float)camera);
   SetCursorSensitivity((float)cursor);
-  SetFov((float)fov);
   SetInvertedX(invertx);
   SetInvertedY(inverty);
+  SetReticleLock(lock);
 }
 
 float GetSensitivity() {
@@ -191,6 +216,16 @@ float GetSensitivity() {
 
 void SetSensitivity(float sens) {
   sensitivity = sens;
+}
+
+bool HandleReticleLockOn()
+{
+  return reticle_lock;
+}
+
+void SetReticleLock(bool lock)
+{
+  reticle_lock = lock;
 }
 
 float GetCursorSensitivity() {
@@ -202,11 +237,7 @@ void SetCursorSensitivity(float sens) {
 }
 
 float GetFov() {
-  return camera_fov;
-}
-
-void SetFov(float fov) {
-  camera_fov = fov;
+  return Config::Get(Config::FOV);
 }
 
 bool InvertedY() {
@@ -225,8 +256,21 @@ void SetInvertedX(bool inverted) {
   inverted_x = inverted;
 }
 
+bool CheckPitchRecentre() {
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN) {
+    if (Pad::PrimeUseController()) {
+      return Pad::CheckPitchRecentre();
+    } 
+  }
+  else if (Wiimote::PrimeUseController()) {
+    return Wiimote::CheckPitchRecentre();
+  }
+
+  return false;
+}
+
 double GetHorizontalAxis() {
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN) {
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN) {
     if (Pad::PrimeUseController()) {
       return std::get<0>(Pad::GetPrimeStickXY());
     } 
@@ -239,7 +283,7 @@ double GetHorizontalAxis() {
 }
 
 double GetVerticalAxis() {
-  if (hack_mgr.get_active_game() == Game::PRIME_1_GCN) {
+  if (hack_mgr.get_active_game() >= Game::PRIME_1_GCN) {
     if (Pad::PrimeUseController()) {
       return std::get<1>(Pad::GetPrimeStickXY());
     } 
@@ -251,16 +295,24 @@ double GetVerticalAxis() {
   return static_cast<double>(g_mouse_input->GetDeltaVerticalAxis());
 }
 
-std::string const& GetCtlDeviceName() {
-  return device_name;
-}
-
-std::string const& GetCtlDeviceSource() {
-  return device_source;
-}
-
 bool GetCulling() {
   return Config::Get(Config::TOGGLE_CULLING);
+}
+
+void SetLockCamera(CameraLock lock) {
+  lock_camera = lock;
+}
+
+CameraLock GetLockCamera() {
+  return lock_camera;
+}
+
+std::tuple<bool, bool> GetMenuOptions() {
+  return Wiimote::GetBVMenuOptions();
+}
+
+EmuVariableManager* GetVariableManager() {
+  return &var_mgr;
 }
 
 HackManager* GetHackManager() {

@@ -134,6 +134,8 @@ static void HandleFrameStepHotkeys()
 
 void HotkeyScheduler::Run()
 {
+  Common::SetCurrentThreadName("HotkeyScheduler");
+
   while (!m_stop_requested.IsSet())
   {
     Common::SleepCurrentThread(1000 / 60);
@@ -389,6 +391,15 @@ void HotkeyScheduler::Run()
           break;
         }
       }
+
+      if (IsHotkey(HK_TOGGLE_SKIP_EFB_ACCESS))
+      {
+        const bool new_value = !Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE);
+        Config::SetCurrent(Config::GFX_HACK_EFB_ACCESS_ENABLE, new_value);
+        OSD::AddMessage(
+            StringFromFormat("%s EFB Access from CPU", new_value ? "Skip" : "Don't skip"));
+      }
+
       if (IsHotkey(HK_TOGGLE_EFBCOPIES))
       {
         const bool new_value = !Config::Get(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
@@ -602,8 +613,17 @@ void HotkeyScheduler::Run()
 
         OSD::AddMessage(StringFromFormat("Skippable Cutscenes: %s", new_value ? "Enabled" : "Disabled"));
       }
+
+      if (IsHotkey(HK_RESTORE_DASHING))
+      {
+        const bool new_value = !SConfig::GetInstance().bPrimeRestoreDashing;
+        SConfig::GetInstance().bPrimeRestoreDashing = new_value;
+
+        OSD::AddMessage(StringFromFormat("Restore Dashing: %s", new_value ? "Enabled" : "Disabled"));
+      }
     }
     else {
+      SConfig::GetInstance().bPrimeRestoreDashing = false;
       SConfig::GetInstance().bPrimeSkipCutscene = false;
       SConfig::GetInstance().bPrimeInvulnerability = false;
       SConfig::GetInstance().bPrimeNoclip = false;

@@ -75,10 +75,23 @@ void print_to_log(std::string message);
 
 void DevInfo(const char* name, const char* format, ...);
 void DevInfoMatrix(const char* name, const Transform& t);
-std::tuple<u32, u32, u32> GetCheatsTime();
+std::tuple<u32, u32, u32, u32> GetCheatsTime();
 void AddCheatsTime(int index, u32 time);
 
 std::string GetDevInfo();
 void ClrDevInfo();
+
+// Borrowed from DolphinQt MathUtil.h
+template <typename T, typename F>
+constexpr auto Lerp(const T& x, const T& y, const F& a) -> decltype(x + (y - x) * a)
+{
+  return x + (y - x) * a;
+}
+
+template <typename T, typename F>
+constexpr auto AntiLerp(const T& x, const T& y, const F& a) -> decltype((a - x) / (y - x))
+{
+  return (a - x) / (y - x);
+}
 
 }  // namespace prime

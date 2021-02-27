@@ -35,6 +35,8 @@ const Info<bool> GFX_LOG_RENDER_TIME_TO_FILE{{System::GFX, "Settings", "LogRende
 const Info<bool> GFX_OVERLAY_STATS{{System::GFX, "Settings", "OverlayStats"}, false};
 const Info<bool> GFX_OVERLAY_PROJ_STATS{{System::GFX, "Settings", "OverlayProjStats"}, false};
 const Info<bool> GFX_DUMP_TEXTURES{{System::GFX, "Settings", "DumpTextures"}, false};
+const Info<bool> GFX_DUMP_MIP_TEXTURES{{System::GFX, "Settings", "DumpMipTextures"}, true};
+const Info<bool> GFX_DUMP_BASE_TEXTURES{{System::GFX, "Settings", "DumpBaseTextures"}, true};
 const Info<bool> GFX_HIRES_TEXTURES{{System::GFX, "Settings", "HiresTextures"}, false};
 const Info<bool> GFX_CACHE_HIRES_TEXTURES{{System::GFX, "Settings", "CacheHiresTextures"}, false};
 const Info<bool> GFX_DUMP_EFB_TARGET{{System::GFX, "Settings", "DumpEFBTarget"}, false};
@@ -158,11 +160,14 @@ const Info<bool> GFX_PERF_QUERIES_ENABLE{{System::GFX, "GameSpecific", "PerfQuer
 
 // Graphics.PrimeHack
 const Info<bool> AUTO_EFB{{System::GFX, "PrimeHack Misc", "AutoEFBMP"}, true};
-const Info<bool> LOCKCAMERA_IN_PUZZLES{{System::GFX, "PrimeHack Misc", "Lock Camera in Motion Puzzles"}, false};
+const Info<bool> LOCKCAMERA_IN_PUZZLES{{System::GFX, "PrimeHack Misc", "Lock Camera in Motion Puzzles"}, true};
 const Info<bool> DISABLE_BLOOM{{System::GFX, "PrimeHack Misc", "DisableBloom"}, false};
+const Info<int> FOV{{System::GFX, "PrimeHack Misc", "Field of View"}, 60};
 const Info<bool> TOGGLE_ARM_REPOSITION{{System::GFX, "PrimeHack Misc", "ToggleArmRePosition"}, true};
 const Info<bool> TOGGLE_CULLING{{System::GFX, "PrimeHack Misc", "ToggleCulling"}, false};
 const Info<bool> ENABLE_SECONDARY_GUNFX{{System::GFX, "PrimeHack Misc", "EnableSecondaryGunFX"}, false};
+const Info<bool> GC_SHOW_CROSSHAIR{ {System::GFX, "PrimeHack Misc", "GC_ShowCrosshair"}, false };
+const Info<int> GC_CROSSHAIR_COLOR_RGBA{ {System::GFX, "PrimeHack Misc", "GC_Crosshair_Color_RGBA"}, 0x4b7ea331 };
 
 const Info<int> ARMPOSITION_MODE{{System::GFX, "PrimeHack Misc", "ArmPosition_Mode"}, 0};
 const Info<int> ARMPOSITION_LEFTRIGHT{{System::GFX, "PrimeHack Misc", "ArmPosition_LEFTRIGHT"}, 25};

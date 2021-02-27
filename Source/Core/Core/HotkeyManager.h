@@ -90,6 +90,7 @@ enum Hotkey
 
   HK_TOGGLE_CROP,
   HK_TOGGLE_AR,
+  HK_TOGGLE_SKIP_EFB_ACCESS,
   HK_TOGGLE_EFBCOPIES,
   HK_TOGGLE_XFBCOPIES,
   HK_TOGGLE_IMMEDIATE_XFB,
@@ -180,6 +181,7 @@ enum Hotkey
   HK_NOCLIP_TOGGLE,
   HK_INVULNERABILITY_TOGGLE,
   HK_SKIP_CUTSCENE,
+  HK_RESTORE_DASHING,
   HK_MOTION_LOCK,
 
   NUM_HOTKEYS,
@@ -234,6 +236,7 @@ public:
   int FindGroupByID(int id) const;
   int GetIndexForGroup(int group, int id) const;
   void LoadDefaults(const ControllerInterface& ciface) override;
+  void ResetStupid();
 
 private:
   std::array<ControllerEmu::Buttons*, NUM_HOTKEY_GROUPS> m_keys;

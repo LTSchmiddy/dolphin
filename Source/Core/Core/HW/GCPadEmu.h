@@ -60,12 +60,14 @@ public:
 
   void SetPrimeMode(bool controller);
 
+  bool CheckPitchRecentre();
   std::tuple<double, double> GetPrimeStickXY();
 
-  std::tuple<double, double, double, bool, bool> GetPrimeSettings();
+  std::tuple<double, double, bool, bool> GetPrimeSettings();
 
-  static const u8 MAIN_STICK_GATE_RADIUS = 87;
-  static const u8 C_STICK_GATE_RADIUS = 74;
+  // Values averaged from multiple genuine GameCube controllers.
+  static constexpr ControlState MAIN_STICK_GATE_RADIUS = 0.7937125;
+  static constexpr ControlState C_STICK_GATE_RADIUS = 0.7221375;
 
 private:
   ControllerEmu::Buttons* m_buttons;
@@ -88,7 +90,6 @@ private:
   ControllerEmu::SettingValue<double> m_primehack_horizontal_sensitivity;
   ControllerEmu::SettingValue<double> m_primehack_vertical_sensitivity;
 
-  ControllerEmu::SettingValue<double> m_primehack_fieldofview;
   ControllerEmu::SettingValue<bool> m_primehack_invert_y;
   ControllerEmu::SettingValue<bool> m_primehack_invert_x;
 
